@@ -1,0 +1,35 @@
+name: release
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - id: get_version
+        run: echo ::set-output name=version::${GITHUB_REF/refs\/tags\//}
+
+      - uses: actions/checkout@v2
+
+      - uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v2
+        with:
+          file: Dockerfile
+          tags: smartxworks/capch-controller:${{ steps.get_version.outputs.version }}
+          push: true
+
+      - run: |
+          curl -sLo /tmp/skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
+          chmod +x /tmp/skaffold
+          /tmp/skaffold render --default-repo=smartxworks --offline=true > capch.yaml
+
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: capch.yaml

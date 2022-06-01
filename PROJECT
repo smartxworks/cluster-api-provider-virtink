@@ -1,0 +1,33 @@
+domain: cluster.x-k8s.io
+layout:
+- go.kubebuilder.io/v3
+projectName: cluster-api-provider-kubrid
+repo: github.com/smartxworks/cluster-api-provider-kubrid
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: cluster.x-k8s.io
+  group: infrastructure
+  kind: KubridCluster
+  path: github.com/smartxworks/cluster-api-provider-kubrid/api/v1beta1
+  version: v1beta1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: cluster.x-k8s.io
+  group: infrastructure
+  kind: KubridMachine
+  path: github.com/smartxworks/cluster-api-provider-kubrid/api/v1beta1
+  version: v1beta1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: cluster.x-k8s.io
+  group: infrastructure
+  kind: KubridMachineTemplate
+  path: github.com/smartxworks/cluster-api-provider-kubrid/api/v1beta1
+  version: v1beta1
+version: "3"
