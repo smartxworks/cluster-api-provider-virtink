@@ -12,4 +12,4 @@ The API itself is shared across multiple cloud providers allowing for true Kubri
 
 ## License
 
-Cluster API Provider Kubrid is distributed under the [Mozilla Public License Version 2.0](LICENSE).
+This project is distributed under the [Mozilla Public License Version 2.0](LICENSE).
