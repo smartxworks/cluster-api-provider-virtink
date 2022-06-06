@@ -16,9 +16,12 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.ControlPlaneEndpoint
-      name: ControlPlane
+    - jsonPath: .spec.controlPlaneEndpoint.host
+      name: Host
       type: string
+    - jsonPath: .spec.controlPlaneEndpoint.port
+      name: Port
+      type: integer
     - jsonPath: .status.ready
       name: Ready
       type: boolean

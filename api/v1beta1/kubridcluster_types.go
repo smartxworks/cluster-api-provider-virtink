@@ -34,7 +34,8 @@ type KubridClusterStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="ControlPlane",type=string,JSONPath=`.spec.ControlPlaneEndpoint`
+//+kubebuilder:printcolumn:name="Host",type=string,JSONPath=`.spec.controlPlaneEndpoint.host`
+//+kubebuilder:printcolumn:name="Port",type=integer,JSONPath=`.spec.controlPlaneEndpoint.port`
 //+kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
 
 // KubridCluster is the Schema for the kubridclusters API
