@@ -74,7 +74,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	recorder := mgr.GetEventRecorderFor("capch")
+	recorder := mgr.GetEventRecorderFor("capch-controller-manager")
 	if err = (&controllers.KubridClusterReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
