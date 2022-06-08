@@ -15,7 +15,6 @@ import (
 	kubridv1alpha1 "github.com/smartxworks/kubrid/pkg/apis/kubrid/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -145,58 +144,25 @@ func (r *KubridMachineReconciler) reconcile(ctx context.Context, machine *infras
 }
 
 func (r *KubridMachineReconciler) buildVM(ctx context.Context, machine *infrastructurev1beta1.KubridMachine, ownerMachine *capiv1beta1.Machine) (*kubridv1alpha1.VirtualMachine, error) {
-	return &kubridv1alpha1.VirtualMachine{
+	vm := &kubridv1alpha1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      machine.Labels,
 			Annotations: machine.Annotations,
 		},
-		Spec: kubridv1alpha1.VirtualMachineSpec{
-			RunPolicy: kubridv1alpha1.RunPolicyOnce,
-			Instance: kubridv1alpha1.Instance{
-				CPU: kubridv1alpha1.CPU{
-					Sockets:        1,
-					CoresPerSocket: 2,
-				},
-				Memory: kubridv1alpha1.Memory{
-					Size: func() *resource.Quantity { q := resource.MustParse("2Gi"); return &q }(),
-				},
-				Kernel: &kubridv1alpha1.Kernel{
-					Image:   "smartxworks/capch-kernel-5.15.12",
-					Cmdline: "console=ttyS0 root=/dev/vda rw",
-				},
-				Disks: []kubridv1alpha1.Disk{{
-					Name: "rootfs",
-				}, {
-					Name: "cloud-init",
-				}},
-				Interfaces: []kubridv1alpha1.Interface{{
-					Name: "pod",
-				}},
+		Spec: machine.Spec.VMSpec,
+	}
+	vm.Spec.Instance.Disks = append(vm.Spec.Instance.Disks, kubridv1alpha1.Disk{
+		Name: "cloud-init",
+	})
+	vm.Spec.Volumes = append(vm.Spec.Volumes, kubridv1alpha1.Volume{
+		Name: "cloud-init",
+		VolumeSource: kubridv1alpha1.VolumeSource{
+			CloudInit: &kubridv1alpha1.CloudInitVolumeSource{
+				UserDataSecretName: *ownerMachine.Spec.Bootstrap.DataSecretName,
 			},
-			Volumes: []kubridv1alpha1.Volume{{
-				Name: "rootfs",
-				VolumeSource: kubridv1alpha1.VolumeSource{
-					ContainerRootfs: &kubridv1alpha1.ContainerRootfsVolumeSource{
-						Image: "smartxworks/capch-rootfs-1.24.0",
-						Size:  resource.MustParse("4Gi"),
-					},
-				},
-			}, {
-				Name: "cloud-init",
-				VolumeSource: kubridv1alpha1.VolumeSource{
-					CloudInit: &kubridv1alpha1.CloudInitVolumeSource{
-						UserDataSecretName: *ownerMachine.Spec.Bootstrap.DataSecretName,
-					},
-				},
-			}},
-			Networks: []kubridv1alpha1.Network{{
-				Name: "pod",
-				NetworkSource: kubridv1alpha1.NetworkSource{
-					Pod: &kubridv1alpha1.PodNetworkSource{},
-				},
-			}},
 		},
-	}, nil
+	})
+	return vm, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

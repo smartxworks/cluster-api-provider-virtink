@@ -9,6 +9,7 @@
 package v1beta1
 
 import (
+	kubridv1alpha1 "github.com/smartxworks/kubrid/pkg/apis/kubrid/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -21,6 +22,8 @@ type KubridMachineSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	ProviderID *string `json:"providerID,omitempty"`
+
+	VMSpec kubridv1alpha1.VirtualMachineSpec `json:"vmSpec"`
 }
 
 // KubridMachineStatus defines the observed state of KubridMachine

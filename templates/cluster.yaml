@@ -17,6 +17,12 @@ spec:
     kind: KubridCluster
     name: sample
 ---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: KubridCluster
+metadata:
+  name: sample
+spec: {}
+---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
 metadata:
@@ -43,10 +49,46 @@ spec:
         ignorePreflightErrors:
           - SystemVerification
 ---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: KubridMachineTemplate
+metadata:
+  name: sample-cp
+spec:
+  template:
+    spec:
+      vmSpec:
+        runPolicy: Once
+        readinessProbe:
+          httpGet:
+            scheme: HTTPS
+            port: 6443
+            path: /readyz
+        instance:
+          cpu:
+            sockets: 1
+            coresPerSocket: 2
+          memory:
+            size: 2Gi
+          kernel:
+            image: smartxworks/capch-kernel-5.15.12
+            cmdline: console=ttyS0 root=/dev/vda rw
+          disks:
+            - name: rootfs
+          interfaces:
+            - name: pod
+        volumes:
+          - name: rootfs
+            containerRootfs:
+              image: smartxworks/capch-rootfs-1.24.0
+              size: 4Gi
+        networks:
+          - name: pod
+            pod: {}
+---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
-  name: sample-md-0
+  name: sample-md
 spec:
   clusterName: sample
   replicas: 3
@@ -59,16 +101,16 @@ spec:
         configRef:
           apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
           kind: KubeadmConfigTemplate
-          name: sample-md-0
+          name: sample-md
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: KubridMachineTemplate
-        name: sample-md-0
+        name: sample-md
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
-  name: sample-md-0
+  name: sample-md
 spec:
   template:
     spec:
@@ -80,23 +122,32 @@ spec:
             - SystemVerification
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: KubridCluster
-metadata:
-  name: sample
-spec: {}
----
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: KubridMachineTemplate
 metadata:
-  name: sample-cp
+  name: sample-md
 spec:
   template:
-    spec: {}
----
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: KubridMachineTemplate
-metadata:
-  name: sample-md-0
-spec:
-  template:
-    spec: {}
+    spec:
+      vmSpec:
+        runPolicy: Once
+        instance:
+          cpu:
+            sockets: 1
+            coresPerSocket: 2
+          memory:
+            size: 2Gi
+          kernel:
+            image: smartxworks/capch-kernel-5.15.12
+            cmdline: console=ttyS0 root=/dev/vda rw
+          disks:
+            - name: rootfs
+          interfaces:
+            - name: pod
+        volumes:
+          - name: rootfs
+            containerRootfs:
+              image: smartxworks/capch-rootfs-1.24.0
+              size: 4Gi
+        networks:
+          - name: pod
+            pod: {}
