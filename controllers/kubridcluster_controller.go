@@ -133,7 +133,7 @@ func (r *KubridClusterReconciler) reconcile(ctx context.Context, cluster *infras
 func (r *KubridClusterReconciler) buildControlPlaneService(ctx context.Context, cluster *infrastructurev1beta1.KubridCluster, ownerCluster *capiv1beta1.Cluster) (*corev1.Service, error) {
 	return &corev1.Service{
 		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeLoadBalancer,
+			Type: corev1.ServiceTypeNodePort,
 			Selector: map[string]string{
 				capiv1beta1.ClusterLabelName:             ownerCluster.Name,
 				capiv1beta1.MachineControlPlaneLabelName: "",
