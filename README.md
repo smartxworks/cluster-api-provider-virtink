@@ -1,14 +1,14 @@
-# Kubernetes Cluster API Provider Kubrid
+# Kubernetes Cluster API Provider VirTink
 
-[![build](https://github.com/smartxworks/cluster-api-provider-kubrid/actions/workflows/build.yml/badge.svg)](https://github.com/smartxworks/cluster-api-provider-kubrid/actions/workflows/build.yml)
+[![build](https://github.com/smartxworks/cluster-api-provider-virtink/actions/workflows/build.yml/badge.svg)](https://github.com/smartxworks/cluster-api-provider-virtink/actions/workflows/build.yml)
 
-Kubernetes-native declarative infrastructure for [Kubrid](https://github.com/smartxworks/kubrid).
+Kubernetes-native declarative infrastructure for [VirTink](https://github.com/smartxworks/virtink).
 
-## What is the Cluster API Provider Kubrid
+## What is the Cluster API Provider VirTink
 
-The [Cluster API](https://github.com/kubernetes-sigs/cluster-api) brings declarative, Kubernetes-style APIs to cluster creation, configuration and management. Cluster API Provider Kubrid is a concrete implementation of Cluster API for Kubrid.
+The [Cluster API](https://github.com/kubernetes-sigs/cluster-api) brings declarative, Kubernetes-style APIs to cluster creation, configuration and management. Cluster API Provider VirTink is a concrete implementation of Cluster API for VirTink.
 
-The API itself is shared across multiple cloud providers allowing for true Kubrid hybrid deployments of Kubernetes. It is built atop the lessons learned from previous cluster managers such as [kops](https://github.com/kubernetes/kops) and [kubicorn](http://kubicorn.io/).
+The API itself is shared across multiple cloud providers allowing for true VirTink hybrid deployments of Kubernetes. It is built atop the lessons learned from previous cluster managers such as [kops](https://github.com/kubernetes/kops) and [kubicorn](http://kubicorn.io/).
 
 ## License
 

@@ -8,7 +8,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	kubridv1alpha1 "github.com/smartxworks/kubrid/pkg/apis/kubrid/v1alpha1"
+	virtv1alpha1 "github.com/smartxworks/virtink/pkg/apis/virt/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-kubrid/api/v1beta1"
-	"github.com/smartxworks/cluster-api-provider-kubrid/controllers"
+	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-virtink/api/v1beta1"
+	"github.com/smartxworks/cluster-api-provider-virtink/controllers"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -30,7 +30,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(capiv1beta1.AddToScheme(scheme))
-	utilruntime.Must(kubridv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(virtv1alpha1.AddToScheme(scheme))
 
 	utilruntime.Must(infrastructurev1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
@@ -67,20 +67,20 @@ func main() {
 	}
 
 	recorder := mgr.GetEventRecorderFor("capch-controller-manager")
-	if err = (&controllers.KubridClusterReconciler{
+	if err = (&controllers.VirTinkClusterReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: recorder,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "KubridCluster")
+		setupLog.Error(err, "unable to create controller", "controller", "VirTinkCluster")
 		os.Exit(1)
 	}
-	if err = (&controllers.KubridMachineReconciler{
+	if err = (&controllers.VirTinkMachineReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: recorder,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "KubridMachine")
+		setupLog.Error(err, "unable to create controller", "controller", "VirTinkMachine")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

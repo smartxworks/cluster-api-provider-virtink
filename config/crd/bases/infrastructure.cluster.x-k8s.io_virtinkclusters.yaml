@@ -5,14 +5,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: kubridclusters.infrastructure.cluster.x-k8s.io
+  name: virtinkclusters.infrastructure.cluster.x-k8s.io
 spec:
   group: infrastructure.cluster.x-k8s.io
   names:
-    kind: KubridCluster
-    listKind: KubridClusterList
-    plural: kubridclusters
-    singular: kubridcluster
+    kind: VirTinkCluster
+    listKind: VirTinkClusterList
+    plural: virtinkclusters
+    singular: virtinkcluster
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -28,7 +28,7 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: KubridCluster is the Schema for the kubridclusters API
+        description: VirTinkCluster is the Schema for the virtinkclusters API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -43,7 +43,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: KubridClusterSpec defines the desired state of KubridCluster
+            description: VirTinkClusterSpec defines the desired state of VirTinkCluster
             properties:
               controlPlaneEndpoint:
                 description: APIEndpoint represents a reachable Kubernetes API endpoint.
@@ -61,7 +61,7 @@ spec:
                 type: object
             type: object
           status:
-            description: KubridClusterStatus defines the observed state of KubridCluster
+            description: VirTinkClusterStatus defines the observed state of VirTinkCluster
             properties:
               ready:
                 type: boolean

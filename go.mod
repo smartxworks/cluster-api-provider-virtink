@@ -1,11 +1,11 @@
-module github.com/smartxworks/cluster-api-provider-kubrid
+module github.com/smartxworks/cluster-api-provider-virtink
 
 go 1.17
 
 require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.18.1
-	github.com/smartxworks/kubrid v0.0.0-00010101000000-000000000000
+	github.com/smartxworks/virtink v0.0.0-20220622062246-13c76041bb00
 	k8s.io/api v0.24.1
 	k8s.io/apimachinery v0.24.1
 	k8s.io/client-go v0.24.1
@@ -86,7 +86,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace (
-	github.com/docker/libnetwork => github.com/docker/libnetwork v0.8.0-dev.2.0.20220525220214-2dab5620d446
-	github.com/smartxworks/kubrid => ./staging/src/github.com/smartxworks/kubrid
-)
+replace github.com/docker/libnetwork => github.com/docker/libnetwork v0.8.0-dev.2.0.20220525220214-2dab5620d446

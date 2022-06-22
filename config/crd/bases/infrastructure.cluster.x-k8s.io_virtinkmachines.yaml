@@ -5,14 +5,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: kubridmachines.infrastructure.cluster.x-k8s.io
+  name: virtinkmachines.infrastructure.cluster.x-k8s.io
 spec:
   group: infrastructure.cluster.x-k8s.io
   names:
-    kind: KubridMachine
-    listKind: KubridMachineList
-    plural: kubridmachines
-    singular: kubridmachine
+    kind: VirTinkMachine
+    listKind: VirTinkMachineList
+    plural: virtinkmachines
+    singular: virtinkmachine
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -25,7 +25,7 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: KubridMachine is the Schema for the kubridmachines API
+        description: VirTinkMachine is the Schema for the virtinkmachines API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -40,7 +40,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: KubridMachineSpec defines the desired state of KubridMachine
+            description: VirTinkMachineSpec defines the desired state of VirTinkMachine
             properties:
               providerID:
                 type: string
@@ -1418,7 +1418,7 @@ spec:
             - vmSpec
             type: object
           status:
-            description: KubridMachineStatus defines the observed state of KubridMachine
+            description: VirTinkMachineStatus defines the observed state of VirTinkMachine
             properties:
               ready:
                 type: boolean
