@@ -1,13 +1,13 @@
-# permissions for end users to edit kubridmachinetemplates.
+# permissions for end users to edit virtinkmachinetemplates.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kubridmachinetemplate-editor-role
+  name: virtinkmachinetemplate-editor-role
 rules:
 - apiGroups:
   - infrastructure.cluster.x-k8s.io
   resources:
-  - kubridmachinetemplates
+  - virtinkmachinetemplates
   verbs:
   - create
   - delete
@@ -19,6 +19,6 @@ rules:
 - apiGroups:
   - infrastructure.cluster.x-k8s.io
   resources:
-  - kubridmachinetemplates/status
+  - virtinkmachinetemplates/status
   verbs:
   - get

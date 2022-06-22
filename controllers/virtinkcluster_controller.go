@@ -18,19 +18,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-kubrid/api/v1beta1"
+	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-virtink/api/v1beta1"
 )
 
-// KubridClusterReconciler reconciles a KubridCluster object
-type KubridClusterReconciler struct {
+// VirTinkClusterReconciler reconciles a VirTinkCluster object
+type VirTinkClusterReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=kubridclusters,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=kubridclusters/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=kubridclusters/finalizers,verbs=update
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=virtinkclusters,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=virtinkclusters/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=virtinkclusters/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;update;patch
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters/status,verbs=get
@@ -39,14 +39,14 @@ type KubridClusterReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the KubridCluster object against the actual cluster state, and then
+// the VirTinkCluster object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
-func (r *KubridClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var cluster infrastructurev1beta1.KubridCluster
+func (r *VirTinkClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	var cluster infrastructurev1beta1.VirTinkCluster
 	if err := r.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -66,7 +66,7 @@ func (r *KubridClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
-func (r *KubridClusterReconciler) reconcile(ctx context.Context, cluster *infrastructurev1beta1.KubridCluster) error {
+func (r *VirTinkClusterReconciler) reconcile(ctx context.Context, cluster *infrastructurev1beta1.VirTinkCluster) error {
 	if !cluster.DeletionTimestamp.IsZero() {
 		return nil
 	}
@@ -122,7 +122,7 @@ func (r *KubridClusterReconciler) reconcile(ctx context.Context, cluster *infras
 	return nil
 }
 
-func (r *KubridClusterReconciler) buildControlPlaneService(ctx context.Context, cluster *infrastructurev1beta1.KubridCluster, ownerCluster *capiv1beta1.Cluster) (*corev1.Service, error) {
+func (r *VirTinkClusterReconciler) buildControlPlaneService(ctx context.Context, cluster *infrastructurev1beta1.VirTinkCluster, ownerCluster *capiv1beta1.Cluster) (*corev1.Service, error) {
 	return &corev1.Service{
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeNodePort,
@@ -139,9 +139,9 @@ func (r *KubridClusterReconciler) buildControlPlaneService(ctx context.Context, 
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *KubridClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *VirTinkClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrastructurev1beta1.KubridCluster{}).
+		For(&infrastructurev1beta1.VirTinkCluster{}).
 		Owns(&corev1.Service{}).
 		Complete(r)
 }

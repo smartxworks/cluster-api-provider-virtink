@@ -1,7 +1,7 @@
 apiVersion: skaffold/v2beta28
 kind: Config
 metadata:
-  name: cluster-api-provider-kubrid
+  name: cluster-api-provider-virtink
 build:
   local:
     useBuildkit: true

@@ -1,20 +1,24 @@
-# permissions for end users to view kubridmachinetemplates.
+# permissions for end users to edit virtinkclusters.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kubridmachinetemplate-viewer-role
+  name: virtinkcluster-editor-role
 rules:
 - apiGroups:
   - infrastructure.cluster.x-k8s.io
   resources:
-  - kubridmachinetemplates
+  - virtinkclusters
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - infrastructure.cluster.x-k8s.io
   resources:
-  - kubridmachinetemplates/status
+  - virtinkclusters/status
   verbs:
   - get

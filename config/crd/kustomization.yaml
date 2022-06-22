@@ -5,24 +5,24 @@ commonLabels:
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/infrastructure.cluster.x-k8s.io_kubridclusters.yaml
-- bases/infrastructure.cluster.x-k8s.io_kubridmachines.yaml
-- bases/infrastructure.cluster.x-k8s.io_kubridmachinetemplates.yaml
+- bases/infrastructure.cluster.x-k8s.io_virtinkclusters.yaml
+- bases/infrastructure.cluster.x-k8s.io_virtinkmachines.yaml
+- bases/infrastructure.cluster.x-k8s.io_virtinkmachinetemplates.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
-#- patches/webhook_in_kubridclusters.yaml
-#- patches/webhook_in_kubridmachines.yaml
-#- patches/webhook_in_kubridmachinetemplates.yaml
+#- patches/webhook_in_virtinkclusters.yaml
+#- patches/webhook_in_virtinkmachines.yaml
+#- patches/webhook_in_virtinkmachinetemplates.yaml
 #+kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable cert-manager, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
-#- patches/cainjection_in_kubridclusters.yaml
-#- patches/cainjection_in_kubridmachines.yaml
-#- patches/cainjection_in_kubridmachinetemplates.yaml
+#- patches/cainjection_in_virtinkclusters.yaml
+#- patches/cainjection_in_virtinkmachines.yaml
+#- patches/cainjection_in_virtinkmachinetemplates.yaml
 #+kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.

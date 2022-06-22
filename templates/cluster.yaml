@@ -14,11 +14,11 @@ spec:
     name: sample-cp
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: KubridCluster
+    kind: VirTinkCluster
     name: sample
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: KubridCluster
+kind: VirTinkCluster
 metadata:
   name: sample
 spec: {}
@@ -33,24 +33,24 @@ spec:
   machineTemplate:
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-      kind: KubridMachineTemplate
+      kind: VirTinkMachineTemplate
       name: sample-cp
   kubeadmConfigSpec:
     initConfiguration:
       nodeRegistration:
         kubeletExtraArgs:
-          provider-id: kubrid://{{ ds.meta_data.instance_id }}
+          provider-id: virtink://{{ ds.meta_data.instance_id }}
         ignorePreflightErrors:
           - SystemVerification
     joinConfiguration:
       nodeRegistration:
         kubeletExtraArgs:
-          provider-id: kubrid://{{ ds.meta_data.instance_id }}
+          provider-id: virtink://{{ ds.meta_data.instance_id }}
         ignorePreflightErrors:
           - SystemVerification
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: KubridMachineTemplate
+kind: VirTinkMachineTemplate
 metadata:
   name: sample-cp
 spec:
@@ -104,7 +104,7 @@ spec:
           name: sample-md
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-        kind: KubridMachineTemplate
+        kind: VirTinkMachineTemplate
         name: sample-md
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
@@ -117,12 +117,12 @@ spec:
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            provider-id: kubrid://{{ ds.meta_data.instance_id }}
+            provider-id: virtink://{{ ds.meta_data.instance_id }}
           ignorePreflightErrors:
             - SystemVerification
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: KubridMachineTemplate
+kind: VirTinkMachineTemplate
 metadata:
   name: sample-md
 spec:

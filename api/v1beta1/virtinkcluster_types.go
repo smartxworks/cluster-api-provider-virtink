@@ -8,16 +8,16 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// KubridClusterSpec defines the desired state of KubridCluster
-type KubridClusterSpec struct {
+// VirTinkClusterSpec defines the desired state of VirTinkCluster
+type VirTinkClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
 	ControlPlaneEndpoint capiv1beta1.APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
 }
 
-// KubridClusterStatus defines the observed state of KubridCluster
-type KubridClusterStatus struct {
+// VirTinkClusterStatus defines the observed state of VirTinkCluster
+type VirTinkClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
@@ -30,24 +30,24 @@ type KubridClusterStatus struct {
 //+kubebuilder:printcolumn:name="Port",type=integer,JSONPath=`.spec.controlPlaneEndpoint.port`
 //+kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
 
-// KubridCluster is the Schema for the kubridclusters API
-type KubridCluster struct {
+// VirTinkCluster is the Schema for the virtinkclusters API
+type VirTinkCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   KubridClusterSpec   `json:"spec,omitempty"`
-	Status KubridClusterStatus `json:"status,omitempty"`
+	Spec   VirTinkClusterSpec   `json:"spec,omitempty"`
+	Status VirTinkClusterStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// KubridClusterList contains a list of KubridCluster
-type KubridClusterList struct {
+// VirTinkClusterList contains a list of VirTinkCluster
+type VirTinkClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []KubridCluster `json:"items"`
+	Items           []VirTinkCluster `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&KubridCluster{}, &KubridClusterList{})
+	SchemeBuilder.Register(&VirTinkCluster{}, &VirTinkClusterList{})
 }

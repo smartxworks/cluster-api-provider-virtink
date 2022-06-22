@@ -14,7 +14,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-kubrid/api/v1beta1"
+	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-virtink/api/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 
