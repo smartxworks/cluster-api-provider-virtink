@@ -1,6 +1,7 @@
 # Kubernetes Cluster API Provider VirTink
 
 [![build](https://github.com/smartxworks/cluster-api-provider-virtink/actions/workflows/build.yml/badge.svg)](https://github.com/smartxworks/cluster-api-provider-virtink/actions/workflows/build.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/smartxworks/cluster-api-provider-virtink)](https://goreportcard.com/report/github.com/smartxworks/cluster-api-provider-virtink)
 
 Kubernetes-native declarative infrastructure for [VirTink](https://github.com/smartxworks/virtink).
 
