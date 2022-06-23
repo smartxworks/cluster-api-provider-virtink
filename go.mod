@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.18.1
-	github.com/smartxworks/virtink v0.0.0-20220622062246-13c76041bb00
+	github.com/smartxworks/virtink v0.7.0
 	k8s.io/api v0.24.1
 	k8s.io/apimachinery v0.24.1
 	k8s.io/client-go v0.24.1
