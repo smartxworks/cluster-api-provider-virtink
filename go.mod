@@ -86,4 +86,7 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/docker/libnetwork => github.com/docker/libnetwork v0.8.0-dev.2.0.20220525220214-2dab5620d446
+replace (
+	github.com/docker/distribution => github.com/docker/distribution v2.8.1+incompatible
+	github.com/docker/libnetwork => github.com/docker/libnetwork v0.8.0-dev.2.0.20220525220214-2dab5620d446
+)
