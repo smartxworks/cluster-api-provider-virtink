@@ -21,8 +21,8 @@ import (
 	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-virtink/api/v1beta1"
 )
 
-// VirTinkClusterReconciler reconciles a VirTinkCluster object
-type VirTinkClusterReconciler struct {
+// VirtinkClusterReconciler reconciles a VirtinkCluster object
+type VirtinkClusterReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
@@ -39,14 +39,14 @@ type VirTinkClusterReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the VirTinkCluster object against the actual cluster state, and then
+// the VirtinkCluster object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
-func (r *VirTinkClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var cluster infrastructurev1beta1.VirTinkCluster
+func (r *VirtinkClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	var cluster infrastructurev1beta1.VirtinkCluster
 	if err := r.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -66,7 +66,7 @@ func (r *VirTinkClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{}, nil
 }
 
-func (r *VirTinkClusterReconciler) reconcile(ctx context.Context, cluster *infrastructurev1beta1.VirTinkCluster) error {
+func (r *VirtinkClusterReconciler) reconcile(ctx context.Context, cluster *infrastructurev1beta1.VirtinkCluster) error {
 	if !cluster.DeletionTimestamp.IsZero() {
 		return nil
 	}
@@ -122,7 +122,7 @@ func (r *VirTinkClusterReconciler) reconcile(ctx context.Context, cluster *infra
 	return nil
 }
 
-func (r *VirTinkClusterReconciler) buildControlPlaneService(ctx context.Context, cluster *infrastructurev1beta1.VirTinkCluster, ownerCluster *capiv1beta1.Cluster) (*corev1.Service, error) {
+func (r *VirtinkClusterReconciler) buildControlPlaneService(ctx context.Context, cluster *infrastructurev1beta1.VirtinkCluster, ownerCluster *capiv1beta1.Cluster) (*corev1.Service, error) {
 	return &corev1.Service{
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeNodePort,
@@ -139,9 +139,9 @@ func (r *VirTinkClusterReconciler) buildControlPlaneService(ctx context.Context,
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VirTinkClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *VirtinkClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrastructurev1beta1.VirTinkCluster{}).
+		For(&infrastructurev1beta1.VirtinkCluster{}).
 		Owns(&corev1.Service{}).
 		Complete(r)
 }

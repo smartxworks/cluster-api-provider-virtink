@@ -21,8 +21,8 @@ import (
 	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-virtink/api/v1beta1"
 )
 
-// VirTinkMachineReconciler reconciles a VirTinkMachine object
-type VirTinkMachineReconciler struct {
+// VirtinkMachineReconciler reconciles a VirtinkMachine object
+type VirtinkMachineReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
@@ -39,14 +39,14 @@ type VirTinkMachineReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the VirTinkMachine object against the actual cluster state, and then
+// the VirtinkMachine object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
-func (r *VirTinkMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var machine infrastructurev1beta1.VirTinkMachine
+func (r *VirtinkMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	var machine infrastructurev1beta1.VirtinkMachine
 	if err := r.Get(ctx, req.NamespacedName, &machine); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -66,7 +66,7 @@ func (r *VirTinkMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{}, nil
 }
 
-func (r *VirTinkMachineReconciler) reconcile(ctx context.Context, machine *infrastructurev1beta1.VirTinkMachine) error {
+func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine) error {
 	if !machine.DeletionTimestamp.IsZero() {
 		return nil
 	}
@@ -135,7 +135,7 @@ func (r *VirTinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 	return nil
 }
 
-func (r *VirTinkMachineReconciler) buildVM(ctx context.Context, machine *infrastructurev1beta1.VirTinkMachine, ownerMachine *capiv1beta1.Machine) (*virtv1alpha1.VirtualMachine, error) {
+func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine, ownerMachine *capiv1beta1.Machine) (*virtv1alpha1.VirtualMachine, error) {
 	vm := &virtv1alpha1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      machine.Labels,
@@ -158,9 +158,9 @@ func (r *VirTinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VirTinkMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *VirtinkMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrastructurev1beta1.VirTinkMachine{}).
+		For(&infrastructurev1beta1.VirtinkMachine{}).
 		Owns(&virtv1alpha1.VirtualMachine{}).
 		Complete(r)
 }

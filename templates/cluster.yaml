@@ -14,11 +14,11 @@ spec:
     name: sample-cp
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: VirTinkCluster
+    kind: VirtinkCluster
     name: sample
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: VirTinkCluster
+kind: VirtinkCluster
 metadata:
   name: sample
 spec: {}
@@ -33,7 +33,7 @@ spec:
   machineTemplate:
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-      kind: VirTinkMachineTemplate
+      kind: VirtinkMachineTemplate
       name: sample-cp
   kubeadmConfigSpec:
     initConfiguration:
@@ -50,7 +50,7 @@ spec:
           - SystemVerification
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: VirTinkMachineTemplate
+kind: VirtinkMachineTemplate
 metadata:
   name: sample-cp
 spec:
@@ -104,7 +104,7 @@ spec:
           name: sample-md
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-        kind: VirTinkMachineTemplate
+        kind: VirtinkMachineTemplate
         name: sample-md
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
@@ -122,7 +122,7 @@ spec:
             - SystemVerification
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: VirTinkMachineTemplate
+kind: VirtinkMachineTemplate
 metadata:
   name: sample-md
 spec:

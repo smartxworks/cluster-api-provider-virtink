@@ -9,8 +9,8 @@ metadata:
 spec:
   group: infrastructure.cluster.x-k8s.io
   names:
-    kind: VirTinkMachine
-    listKind: VirTinkMachineList
+    kind: VirtinkMachine
+    listKind: VirtinkMachineList
     plural: virtinkmachines
     singular: virtinkmachine
   scope: Namespaced
@@ -25,7 +25,7 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: VirTinkMachine is the Schema for the virtinkmachines API
+        description: VirtinkMachine is the Schema for the virtinkmachines API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -40,7 +40,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: VirTinkMachineSpec defines the desired state of VirTinkMachine
+            description: VirtinkMachineSpec defines the desired state of VirtinkMachine
             properties:
               providerID:
                 type: string
@@ -1418,7 +1418,7 @@ spec:
             - vmSpec
             type: object
           status:
-            description: VirTinkMachineStatus defines the observed state of VirTinkMachine
+            description: VirtinkMachineStatus defines the observed state of VirtinkMachine
             properties:
               ready:
                 type: boolean

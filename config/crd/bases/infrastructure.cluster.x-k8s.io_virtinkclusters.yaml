@@ -9,8 +9,8 @@ metadata:
 spec:
   group: infrastructure.cluster.x-k8s.io
   names:
-    kind: VirTinkCluster
-    listKind: VirTinkClusterList
+    kind: VirtinkCluster
+    listKind: VirtinkClusterList
     plural: virtinkclusters
     singular: virtinkcluster
   scope: Namespaced
@@ -28,7 +28,7 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: VirTinkCluster is the Schema for the virtinkclusters API
+        description: VirtinkCluster is the Schema for the virtinkclusters API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -43,7 +43,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: VirTinkClusterSpec defines the desired state of VirTinkCluster
+            description: VirtinkClusterSpec defines the desired state of VirtinkCluster
             properties:
               controlPlaneEndpoint:
                 description: APIEndpoint represents a reachable Kubernetes API endpoint.
@@ -61,7 +61,7 @@ spec:
                 type: object
             type: object
           status:
-            description: VirTinkClusterStatus defines the observed state of VirTinkCluster
+            description: VirtinkClusterStatus defines the observed state of VirtinkCluster
             properties:
               ready:
                 type: boolean

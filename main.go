@@ -67,20 +67,20 @@ func main() {
 	}
 
 	recorder := mgr.GetEventRecorderFor("capch-controller-manager")
-	if err = (&controllers.VirTinkClusterReconciler{
+	if err = (&controllers.VirtinkClusterReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: recorder,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "VirTinkCluster")
+		setupLog.Error(err, "unable to create controller", "controller", "VirtinkCluster")
 		os.Exit(1)
 	}
-	if err = (&controllers.VirTinkMachineReconciler{
+	if err = (&controllers.VirtinkMachineReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: recorder,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "VirTinkMachine")
+		setupLog.Error(err, "unable to create controller", "controller", "VirtinkMachine")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

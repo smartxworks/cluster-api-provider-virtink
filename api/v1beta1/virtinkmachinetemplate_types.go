@@ -7,22 +7,22 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// VirTinkMachineTemplateSpec defines the desired state of VirTinkMachineTemplate
-type VirTinkMachineTemplateSpec struct {
+// VirtinkMachineTemplateSpec defines the desired state of VirtinkMachineTemplate
+type VirtinkMachineTemplateSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Template VirTinkMachineTemplateSpecTemplate `json:"template"`
+	Template VirtinkMachineTemplateSpecTemplate `json:"template"`
 }
 
-type VirTinkMachineTemplateSpecTemplate struct {
+type VirtinkMachineTemplateSpecTemplate struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              VirTinkMachineSpec `json:"spec,omitempty"`
+	Spec              VirtinkMachineSpec `json:"spec,omitempty"`
 }
 
-// VirTinkMachineTemplateStatus defines the observed state of VirTinkMachineTemplate
-type VirTinkMachineTemplateStatus struct {
+// VirtinkMachineTemplateStatus defines the observed state of VirtinkMachineTemplate
+type VirtinkMachineTemplateStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -30,24 +30,24 @@ type VirTinkMachineTemplateStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// VirTinkMachineTemplate is the Schema for the virtinkmachinetemplates API
-type VirTinkMachineTemplate struct {
+// VirtinkMachineTemplate is the Schema for the virtinkmachinetemplates API
+type VirtinkMachineTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   VirTinkMachineTemplateSpec   `json:"spec,omitempty"`
-	Status VirTinkMachineTemplateStatus `json:"status,omitempty"`
+	Spec   VirtinkMachineTemplateSpec   `json:"spec,omitempty"`
+	Status VirtinkMachineTemplateStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// VirTinkMachineTemplateList contains a list of VirTinkMachineTemplate
-type VirTinkMachineTemplateList struct {
+// VirtinkMachineTemplateList contains a list of VirtinkMachineTemplate
+type VirtinkMachineTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []VirTinkMachineTemplate `json:"items"`
+	Items           []VirtinkMachineTemplate `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&VirTinkMachineTemplate{}, &VirTinkMachineTemplateList{})
+	SchemeBuilder.Register(&VirtinkMachineTemplate{}, &VirtinkMachineTemplateList{})
 }

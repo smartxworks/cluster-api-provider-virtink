@@ -8,8 +8,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// VirTinkMachineSpec defines the desired state of VirTinkMachine
-type VirTinkMachineSpec struct {
+// VirtinkMachineSpec defines the desired state of VirtinkMachine
+type VirtinkMachineSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
@@ -18,8 +18,8 @@ type VirTinkMachineSpec struct {
 	VMSpec virtv1alpha1.VirtualMachineSpec `json:"vmSpec"`
 }
 
-// VirTinkMachineStatus defines the observed state of VirTinkMachine
-type VirTinkMachineStatus struct {
+// VirtinkMachineStatus defines the observed state of VirtinkMachine
+type VirtinkMachineStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
@@ -31,24 +31,24 @@ type VirTinkMachineStatus struct {
 //+kubebuilder:printcolumn:name="ProviderID",type=string,JSONPath=`.spec.providerID`
 //+kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
 
-// VirTinkMachine is the Schema for the virtinkmachines API
-type VirTinkMachine struct {
+// VirtinkMachine is the Schema for the virtinkmachines API
+type VirtinkMachine struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   VirTinkMachineSpec   `json:"spec,omitempty"`
-	Status VirTinkMachineStatus `json:"status,omitempty"`
+	Spec   VirtinkMachineSpec   `json:"spec,omitempty"`
+	Status VirtinkMachineStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// VirTinkMachineList contains a list of VirTinkMachine
-type VirTinkMachineList struct {
+// VirtinkMachineList contains a list of VirtinkMachine
+type VirtinkMachineList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []VirTinkMachine `json:"items"`
+	Items           []VirtinkMachine `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&VirTinkMachine{}, &VirTinkMachineList{})
+	SchemeBuilder.Register(&VirtinkMachine{}, &VirtinkMachineList{})
 }

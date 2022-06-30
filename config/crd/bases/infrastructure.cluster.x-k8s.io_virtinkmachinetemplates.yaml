@@ -9,8 +9,8 @@ metadata:
 spec:
   group: infrastructure.cluster.x-k8s.io
   names:
-    kind: VirTinkMachineTemplate
-    listKind: VirTinkMachineTemplateList
+    kind: VirtinkMachineTemplate
+    listKind: VirtinkMachineTemplateList
     plural: virtinkmachinetemplates
     singular: virtinkmachinetemplate
   scope: Namespaced
@@ -18,7 +18,7 @@ spec:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: VirTinkMachineTemplate is the Schema for the virtinkmachinetemplates
+        description: VirtinkMachineTemplate is the Schema for the virtinkmachinetemplates
           API
         properties:
           apiVersion:
@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: VirTinkMachineTemplateSpec defines the desired state of VirTinkMachineTemplate
+            description: VirtinkMachineTemplateSpec defines the desired state of VirtinkMachineTemplate
             properties:
               template:
                 properties:
@@ -42,7 +42,7 @@ spec:
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   spec:
-                    description: VirTinkMachineSpec defines the desired state of VirTinkMachine
+                    description: VirtinkMachineSpec defines the desired state of VirtinkMachine
                     properties:
                       providerID:
                         type: string
@@ -1534,8 +1534,8 @@ spec:
             - template
             type: object
           status:
-            description: VirTinkMachineTemplateStatus defines the observed state of
-              VirTinkMachineTemplate
+            description: VirtinkMachineTemplateStatus defines the observed state of
+              VirtinkMachineTemplate
             type: object
         type: object
     served: true
