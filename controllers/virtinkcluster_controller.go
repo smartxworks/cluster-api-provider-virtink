@@ -6,10 +6,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capiutil "sigs.k8s.io/cluster-api/util"
@@ -35,6 +35,7 @@ type VirtinkClusterReconciler struct {
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters/status,verbs=get
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -67,10 +68,58 @@ func (r *VirtinkClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *VirtinkClusterReconciler) reconcile(ctx context.Context, cluster *infrastructurev1beta1.VirtinkCluster) error {
-	if !cluster.DeletionTimestamp.IsZero() {
+	if !controllerutil.ContainsFinalizer(cluster, infrastructurev1beta1.ClusterFinalizer) {
+		controllerutil.AddFinalizer(cluster, infrastructurev1beta1.ClusterFinalizer)
 		return nil
 	}
 
+	infraClusterClient, err := buildInfrastructureClusterClient(ctx, r.Client, cluster.Spec.InfrastructureClusterSecretRef)
+	if err != nil {
+		return fmt.Errorf("build infrastructure Cluster client from kubeconfig Secret reference: %s", err)
+	}
+
+	if !cluster.DeletionTimestamp.IsZero() {
+		if err := r.reconcileDeleteWithClient(ctx, cluster, infraClusterClient); err != nil {
+			return fmt.Errorf("reconcile delete with client: %s", err)
+		}
+		return nil
+	}
+
+	if err := r.reconcileWithClient(ctx, cluster, infraClusterClient); err != nil {
+		return fmt.Errorf("reconcile with client: %s", err)
+	}
+
+	return nil
+}
+
+func (r *VirtinkClusterReconciler) reconcileDeleteWithClient(ctx context.Context, cluster *infrastructurev1beta1.VirtinkCluster, infraClusterClient client.Client) error {
+	var controlPlaneService corev1.Service
+	controlPlaneServiceKey := types.NamespacedName{
+		Name:      cluster.Name,
+		Namespace: cluster.Namespace,
+	}
+	controlPlaneServiceNotFound := false
+	if err := infraClusterClient.Get(ctx, controlPlaneServiceKey, &controlPlaneService); err != nil {
+		if apierrors.IsNotFound(err) {
+			controlPlaneServiceNotFound = true
+		} else {
+			return fmt.Errorf("get control plane Service from infrastructure Cluster: %s", err)
+		}
+	}
+
+	if !controlPlaneServiceNotFound {
+		if err := infraClusterClient.Delete(ctx, &controlPlaneService); err != nil {
+			return fmt.Errorf("delete control plane Service in infrastructure Cluster: %s", err)
+		}
+		r.Recorder.Eventf(cluster, corev1.EventTypeNormal, "DeletedControlPlaneService", "Delete control plane Service %q", controlPlaneService.Name)
+	}
+
+	controllerutil.RemoveFinalizer(cluster, infrastructurev1beta1.ClusterFinalizer)
+
+	return nil
+}
+
+func (r *VirtinkClusterReconciler) reconcileWithClient(ctx context.Context, cluster *infrastructurev1beta1.VirtinkCluster, infraClusterClient client.Client) error {
 	ownerCluster, err := capiutil.GetOwnerCluster(ctx, r.Client, cluster.ObjectMeta)
 	if err != nil {
 		return fmt.Errorf("get owner Cluster: %s", err)
@@ -85,16 +134,12 @@ func (r *VirtinkClusterReconciler) reconcile(ctx context.Context, cluster *infra
 		Namespace: cluster.Namespace,
 	}
 	controlPlaneServiceNotFound := false
-	if err := r.Get(ctx, controlPlaneServiceKey, &controlPlaneService); err != nil {
+	if err := infraClusterClient.Get(ctx, controlPlaneServiceKey, &controlPlaneService); err != nil {
 		if apierrors.IsNotFound(err) {
 			controlPlaneServiceNotFound = true
 		} else {
-			return fmt.Errorf("get control plane Service: %s", err)
+			return fmt.Errorf("get control plane Service from infrastructure Cluster: %s", err)
 		}
-	}
-
-	if !controlPlaneServiceNotFound && !metav1.IsControlledBy(&controlPlaneService, cluster) {
-		controlPlaneServiceNotFound = true
 	}
 
 	if controlPlaneServiceNotFound {
@@ -105,27 +150,39 @@ func (r *VirtinkClusterReconciler) reconcile(ctx context.Context, cluster *infra
 
 		controlPlaneService.Name = controlPlaneServiceKey.Name
 		controlPlaneService.Namespace = controlPlaneServiceKey.Namespace
-		if err := controllerutil.SetControllerReference(cluster, controlPlaneService, r.Scheme); err != nil {
-			return fmt.Errorf("set control plane Service controller reference: %s", err)
-		}
-		if err := r.Create(ctx, controlPlaneService); err != nil {
-			return fmt.Errorf("create control plane Service: %s", err)
+		if err := infraClusterClient.Create(ctx, controlPlaneService); err != nil {
+			return fmt.Errorf("create control plane Service in infrastructure Cluster: %s", err)
 		}
 		r.Recorder.Eventf(cluster, corev1.EventTypeNormal, "CreatedControlPlaneService", "Create control plane Service %q", controlPlaneService.Name)
 	}
 
-	cluster.Spec.ControlPlaneEndpoint = capiv1beta1.APIEndpoint{
-		Host: controlPlaneService.Spec.ClusterIP,
-		Port: 6443,
+	if cluster.Spec.ControlPlaneServiceType != nil && *cluster.Spec.ControlPlaneServiceType == corev1.ServiceTypeLoadBalancer {
+		if len(controlPlaneService.Status.LoadBalancer.Ingress) == 0 {
+			return fmt.Errorf("control plane load balancer is not ready")
+		}
+		cluster.Spec.ControlPlaneEndpoint = capiv1beta1.APIEndpoint{
+			Host: controlPlaneService.Status.LoadBalancer.Ingress[0].IP,
+			Port: 6443,
+		}
+	} else {
+		cluster.Spec.ControlPlaneEndpoint = capiv1beta1.APIEndpoint{
+			Host: controlPlaneService.Spec.ClusterIP,
+			Port: 6443,
+		}
 	}
+
 	cluster.Status.Ready = true
 	return nil
 }
 
 func (r *VirtinkClusterReconciler) buildControlPlaneService(ctx context.Context, cluster *infrastructurev1beta1.VirtinkCluster, ownerCluster *capiv1beta1.Cluster) (*corev1.Service, error) {
+	serviceType := corev1.ServiceTypeNodePort
+	if cluster.Spec.ControlPlaneServiceType != nil {
+		serviceType = *cluster.Spec.ControlPlaneServiceType
+	}
 	return &corev1.Service{
 		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeNodePort,
+			Type: serviceType,
 			Selector: map[string]string{
 				capiv1beta1.ClusterLabelName:             ownerCluster.Name,
 				capiv1beta1.MachineControlPlaneLabelName: "",
@@ -138,10 +195,40 @@ func (r *VirtinkClusterReconciler) buildControlPlaneService(ctx context.Context,
 	}, nil
 }
 
+func buildInfrastructureClusterClient(ctx context.Context, c client.Client, secretRef *corev1.ObjectReference) (client.Client, error) {
+	if secretRef == nil {
+		return c, nil
+	}
+
+	kubeconfigSecret := corev1.Secret{}
+	kubeconfigSecretKey := client.ObjectKey{
+		Namespace: secretRef.Namespace,
+		Name:      secretRef.Name,
+	}
+	if err := c.Get(ctx, kubeconfigSecretKey, &kubeconfigSecret); err != nil {
+		return nil, fmt.Errorf("get kubeconfig Secret: %s", err)
+	}
+
+	kubeConfig, ok := kubeconfigSecret.Data["kubeconfig"]
+	if !ok {
+		return nil, fmt.Errorf("retrieve kubeconfig from Secret: 'kubeconfig' key is missing")
+	}
+
+	restConfig, err := clientcmd.RESTConfigFromKubeConfig(kubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("create REST config from kubeconfig: %s", err)
+	}
+
+	infraClusterClient, err := client.New(restConfig, client.Options{Scheme: c.Scheme()})
+	if err != nil {
+		return nil, fmt.Errorf("create infrastructure Cluster client: %s", err)
+	}
+	return infraClusterClient, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *VirtinkClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrastructurev1beta1.VirtinkCluster{}).
-		Owns(&corev1.Service{}).
 		Complete(r)
 }

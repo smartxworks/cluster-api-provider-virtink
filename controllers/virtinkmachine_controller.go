@@ -35,6 +35,7 @@ type VirtinkMachineReconciler struct {
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;list;watch
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines/status,verbs=get
 //+kubebuilder:rbac:groups=virt.virtink.smartx.com,resources=virtualmachines,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -67,7 +68,8 @@ func (r *VirtinkMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine) error {
-	if !machine.DeletionTimestamp.IsZero() {
+	if !controllerutil.ContainsFinalizer(machine, infrastructurev1beta1.MachineFinalizer) {
+		controllerutil.AddFinalizer(machine, infrastructurev1beta1.MachineFinalizer)
 		return nil
 	}
 
@@ -86,6 +88,62 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 	if ownerCluster == nil {
 		return fmt.Errorf("owner Cluster is nil")
 	}
+
+	var virtinkCluster infrastructurev1beta1.VirtinkCluster
+	virtinkClusterKey := types.NamespacedName{
+		Namespace: ownerCluster.Spec.InfrastructureRef.Namespace,
+		Name:      ownerCluster.Spec.InfrastructureRef.Name,
+	}
+	if err := r.Get(ctx, virtinkClusterKey, &virtinkCluster); err != nil {
+		return fmt.Errorf("get Virtink Cluster: %s", err)
+	}
+
+	infraClusterClient, err := buildInfrastructureClusterClient(ctx, r.Client, virtinkCluster.Spec.InfrastructureClusterSecretRef)
+	if err != nil {
+		return fmt.Errorf("build infrastructure Cluster client from kubeconfig Secret reference: %s", err)
+	}
+
+	if !machine.DeletionTimestamp.IsZero() {
+		if err := r.reconcileDeleteWithClient(ctx, machine, infraClusterClient); err != nil {
+			return fmt.Errorf("reconcile delete with client: %s", err)
+		}
+		return nil
+	}
+
+	if err := r.reconcileWithClient(ctx, machine, ownerMachine, ownerCluster, infraClusterClient); err != nil {
+		return fmt.Errorf("reconcile with client: %s", err)
+	}
+
+	return nil
+}
+
+func (r *VirtinkMachineReconciler) reconcileDeleteWithClient(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine, infraClusterClient client.Client) error {
+	var vm virtv1alpha1.VirtualMachine
+	vmKey := types.NamespacedName{
+		Name:      machine.Name,
+		Namespace: machine.Namespace,
+	}
+	vmNotFound := false
+	if err := infraClusterClient.Get(ctx, vmKey, &vm); err != nil {
+		if apierrors.IsNotFound(err) {
+			vmNotFound = true
+		} else {
+			return fmt.Errorf("get VM from infrastructure Cluster: %s", err)
+		}
+	}
+	if !vmNotFound {
+		if err := infraClusterClient.Delete(ctx, &vm); err != nil {
+			return fmt.Errorf("delete VM in infrastructure Cluster: %s", err)
+		}
+		r.Recorder.Eventf(machine, corev1.EventTypeNormal, "DeletedVM", "Delete VM %q", vm.Name)
+	}
+
+	controllerutil.RemoveFinalizer(machine, infrastructurev1beta1.MachineFinalizer)
+
+	return nil
+}
+
+func (r *VirtinkMachineReconciler) reconcileWithClient(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine, ownerMachine *capiv1beta1.Machine, ownerCluster *capiv1beta1.Cluster, infraClusterClient client.Client) error {
 	if !ownerCluster.Status.InfrastructureReady {
 		return fmt.Errorf("owner Cluster is not ready")
 	}
@@ -100,16 +158,12 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 		Namespace: machine.Namespace,
 	}
 	vmNotFound := false
-	if err := r.Get(ctx, vmKey, &vm); err != nil {
+	if err := infraClusterClient.Get(ctx, vmKey, &vm); err != nil {
 		if apierrors.IsNotFound(err) {
 			vmNotFound = true
 		} else {
-			return fmt.Errorf("get VM: %s", err)
+			return fmt.Errorf("get VM from infrastructure Cluster: %s", err)
 		}
-	}
-
-	if !vmNotFound && !metav1.IsControlledBy(&vm, machine) {
-		vmNotFound = true
 	}
 
 	if vmNotFound {
@@ -120,13 +174,11 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 
 		vm.Name = vmKey.Name
 		vm.Namespace = vmKey.Namespace
-		if err := controllerutil.SetControllerReference(machine, vm, r.Scheme); err != nil {
-			return fmt.Errorf("set VM controller reference: %s", err)
-		}
-		if err := r.Create(ctx, vm); err != nil {
-			return fmt.Errorf("create VM: %s", err)
+		if err := infraClusterClient.Create(ctx, vm); err != nil {
+			return fmt.Errorf("create VM in infrastructure Cluster: %s", err)
 		}
 		r.Recorder.Eventf(machine, corev1.EventTypeNormal, "CreatedVM", "Create VM %q", vm.Name)
+		return fmt.Errorf("VM %q not found", vm.Name)
 	} else {
 		providerID := fmt.Sprintf("virtink://%s", vm.UID)
 		machine.Spec.ProviderID = &providerID
@@ -143,6 +195,16 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 		},
 		Spec: machine.Spec.VMSpec,
 	}
+
+	var secret corev1.Secret
+	secretKey := types.NamespacedName{
+		Namespace: machine.Namespace,
+		Name:      *ownerMachine.Spec.Bootstrap.DataSecretName,
+	}
+	if err := r.Get(ctx, secretKey, &secret); err != nil {
+		return nil, fmt.Errorf("get bootstrap Secret: %s", err)
+	}
+
 	vm.Spec.Instance.Disks = append(vm.Spec.Instance.Disks, virtv1alpha1.Disk{
 		Name: "cloud-init",
 	})
@@ -150,7 +212,7 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 		Name: "cloud-init",
 		VolumeSource: virtv1alpha1.VolumeSource{
 			CloudInit: &virtv1alpha1.CloudInitVolumeSource{
-				UserDataSecretName: *ownerMachine.Spec.Bootstrap.DataSecretName,
+				UserData: string(secret.Data["value"]),
 			},
 		},
 	})
@@ -161,6 +223,5 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 func (r *VirtinkMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrastructurev1beta1.VirtinkMachine{}).
-		Owns(&virtv1alpha1.VirtualMachine{}).
 		Complete(r)
 }

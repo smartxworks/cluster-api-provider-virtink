@@ -1,8 +1,13 @@
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+)
+
+const (
+	ClusterFinalizer = "virtinkcluster.infrastructure.cluster.x-k8s.io"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -14,6 +19,12 @@ type VirtinkClusterSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	ControlPlaneEndpoint capiv1beta1.APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
+
+	ControlPlaneServiceType *corev1.ServiceType `json:"conrolPlaneServiceType,omitempty"`
+
+	// InfrastructureClusterSecretRef is a reference to a secret with a kubeconfig for external cluster used for infrastructure.
+	// When nil, the management cluster will be used.
+	InfrastructureClusterSecretRef *corev1.ObjectReference `json:"infrastructureClusterSecretRef,omitempty"`
 }
 
 // VirtinkClusterStatus defines the observed state of VirtinkCluster
