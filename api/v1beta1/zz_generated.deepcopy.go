@@ -78,8 +78,8 @@ func (in *VirtinkClusterSpec) DeepCopyInto(out *VirtinkClusterSpec) {
 		*out = new(v1.ServiceType)
 		**out = **in
 	}
-	if in.InfrastructureClusterSecretRef != nil {
-		in, out := &in.InfrastructureClusterSecretRef, &out.InfrastructureClusterSecretRef
+	if in.InfraClusterSecretRef != nil {
+		in, out := &in.InfraClusterSecretRef, &out.InfraClusterSecretRef
 		*out = new(v1.ObjectReference)
 		**out = **in
 	}

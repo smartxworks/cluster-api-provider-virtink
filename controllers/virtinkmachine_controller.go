@@ -68,8 +68,8 @@ func (r *VirtinkMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine) error {
-	if !controllerutil.ContainsFinalizer(machine, infrastructurev1beta1.MachineFinalizer) {
-		controllerutil.AddFinalizer(machine, infrastructurev1beta1.MachineFinalizer)
+	if !controllerutil.ContainsFinalizer(machine, finalizer) {
+		controllerutil.AddFinalizer(machine, finalizer)
 		return nil
 	}
 
@@ -89,101 +89,91 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 		return fmt.Errorf("owner Cluster is nil")
 	}
 
-	var virtinkCluster infrastructurev1beta1.VirtinkCluster
-	virtinkClusterKey := types.NamespacedName{
-		Namespace: ownerCluster.Spec.InfrastructureRef.Namespace,
+	var cluster infrastructurev1beta1.VirtinkCluster
+	clusterKey := types.NamespacedName{
 		Name:      ownerCluster.Spec.InfrastructureRef.Name,
+		Namespace: ownerCluster.Spec.InfrastructureRef.Namespace,
 	}
-	if err := r.Get(ctx, virtinkClusterKey, &virtinkCluster); err != nil {
-		return fmt.Errorf("get Virtink Cluster: %s", err)
+	if err := r.Get(ctx, clusterKey, &cluster); err != nil {
+		return fmt.Errorf("get Cluster: %s", err)
 	}
 
-	infraClusterClient, err := buildInfrastructureClusterClient(ctx, r.Client, virtinkCluster.Spec.InfrastructureClusterSecretRef)
-	if err != nil {
-		return fmt.Errorf("build infrastructure Cluster client from kubeconfig Secret reference: %s", err)
+	infraClusterClient := r.Client
+	if cluster.Spec.InfraClusterSecretRef != nil {
+		c, err := buildInfraClusterClient(ctx, r.Client, cluster.Spec.InfraClusterSecretRef)
+		if err != nil {
+			return fmt.Errorf("build infra cluster client: %s", err)
+		}
+		infraClusterClient = c
 	}
 
 	if !machine.DeletionTimestamp.IsZero() {
-		if err := r.reconcileDeleteWithClient(ctx, machine, infraClusterClient); err != nil {
-			return fmt.Errorf("reconcile delete with client: %s", err)
+		var vm virtv1alpha1.VirtualMachine
+		vmKey := types.NamespacedName{
+			Name:      machine.Name,
+			Namespace: machine.Namespace,
 		}
-		return nil
-	}
-
-	if err := r.reconcileWithClient(ctx, machine, ownerMachine, ownerCluster, infraClusterClient); err != nil {
-		return fmt.Errorf("reconcile with client: %s", err)
-	}
-
-	return nil
-}
-
-func (r *VirtinkMachineReconciler) reconcileDeleteWithClient(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine, infraClusterClient client.Client) error {
-	var vm virtv1alpha1.VirtualMachine
-	vmKey := types.NamespacedName{
-		Name:      machine.Name,
-		Namespace: machine.Namespace,
-	}
-	vmNotFound := false
-	if err := infraClusterClient.Get(ctx, vmKey, &vm); err != nil {
-		if apierrors.IsNotFound(err) {
-			vmNotFound = true
-		} else {
-			return fmt.Errorf("get VM from infrastructure Cluster: %s", err)
-		}
-	}
-	if !vmNotFound {
-		if err := infraClusterClient.Delete(ctx, &vm); err != nil {
-			return fmt.Errorf("delete VM in infrastructure Cluster: %s", err)
-		}
-		r.Recorder.Eventf(machine, corev1.EventTypeNormal, "DeletedVM", "Delete VM %q", vm.Name)
-	}
-
-	controllerutil.RemoveFinalizer(machine, infrastructurev1beta1.MachineFinalizer)
-
-	return nil
-}
-
-func (r *VirtinkMachineReconciler) reconcileWithClient(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine, ownerMachine *capiv1beta1.Machine, ownerCluster *capiv1beta1.Cluster, infraClusterClient client.Client) error {
-	if !ownerCluster.Status.InfrastructureReady {
-		return fmt.Errorf("owner Cluster is not ready")
-	}
-
-	if ownerMachine.Spec.Bootstrap.DataSecretName == nil {
-		return fmt.Errorf("bootstrap data is nil")
-	}
-
-	var vm virtv1alpha1.VirtualMachine
-	vmKey := types.NamespacedName{
-		Name:      machine.Name,
-		Namespace: machine.Namespace,
-	}
-	vmNotFound := false
-	if err := infraClusterClient.Get(ctx, vmKey, &vm); err != nil {
-		if apierrors.IsNotFound(err) {
-			vmNotFound = true
-		} else {
-			return fmt.Errorf("get VM from infrastructure Cluster: %s", err)
-		}
-	}
-
-	if vmNotFound {
-		vm, err := r.buildVM(ctx, machine, ownerMachine)
-		if err != nil {
-			return fmt.Errorf("build VM: %s", err)
+		vmNotFound := false
+		if err := infraClusterClient.Get(ctx, vmKey, &vm); err != nil {
+			if apierrors.IsNotFound(err) {
+				vmNotFound = true
+			} else {
+				return fmt.Errorf("get VM: %s", err)
+			}
 		}
 
-		vm.Name = vmKey.Name
-		vm.Namespace = vmKey.Namespace
-		if err := infraClusterClient.Create(ctx, vm); err != nil {
-			return fmt.Errorf("create VM in infrastructure Cluster: %s", err)
+		if !vmNotFound {
+			if err := infraClusterClient.Delete(ctx, &vm); err != nil {
+				return fmt.Errorf("delete VM: %s", err)
+			}
+			r.Recorder.Eventf(machine, corev1.EventTypeNormal, "DeletedVM", "Deleted VM %q", vm.Name)
 		}
-		r.Recorder.Eventf(machine, corev1.EventTypeNormal, "CreatedVM", "Create VM %q", vm.Name)
-		return fmt.Errorf("VM %q not found", vm.Name)
+
+		controllerutil.RemoveFinalizer(machine, finalizer)
 	} else {
-		providerID := fmt.Sprintf("virtink://%s", vm.UID)
+		if !ownerCluster.Status.InfrastructureReady {
+			return fmt.Errorf("owner Cluster is not ready")
+		}
+
+		if ownerMachine.Spec.Bootstrap.DataSecretName == nil {
+			return fmt.Errorf("bootstrap data is nil")
+		}
+
+		var vm virtv1alpha1.VirtualMachine
+		vmKey := types.NamespacedName{
+			Name:      machine.Name,
+			Namespace: machine.Namespace,
+		}
+		vmNotFound := false
+		if err := infraClusterClient.Get(ctx, vmKey, &vm); err != nil {
+			if apierrors.IsNotFound(err) {
+				vmNotFound = true
+			} else {
+				return fmt.Errorf("get VM: %s", err)
+			}
+		}
+
+		vmUID := vm.UID
+		if vmNotFound {
+			vm, err := r.buildVM(ctx, machine, ownerMachine)
+			if err != nil {
+				return fmt.Errorf("build VM: %s", err)
+			}
+
+			vm.Name = vmKey.Name
+			vm.Namespace = vmKey.Namespace
+			if err := infraClusterClient.Create(ctx, vm); err != nil {
+				return fmt.Errorf("create VM: %s", err)
+			}
+			r.Recorder.Eventf(machine, corev1.EventTypeNormal, "CreatedVM", "Created VM %q", vm.Name)
+			vmUID = vm.UID
+		}
+
+		providerID := fmt.Sprintf("virtink://%s", vmUID)
 		machine.Spec.ProviderID = &providerID
 		machine.Status.Ready = true
 	}
+
 	return nil
 }
 
