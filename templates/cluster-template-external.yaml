@@ -1,40 +1,44 @@
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
-  name: sample
+  name: ${CLUSTER_NAME}
 spec:
   clusterNetwork:
     services:
-      cidrBlocks: ["10.112.0.0/12"]
+      cidrBlocks: ["${VIRTINK_SERVICE_CIDR}"]
     pods:
-      cidrBlocks: ["10.17.0.0/16"]
+      cidrBlocks: ["${VIRTINK_POD_NETWORK_CIDR}"]
   controlPlaneRef:
     apiVersion: controlplane.cluster.x-k8s.io/v1beta1
     kind: KubeadmControlPlane
-    name: sample-cp
+    name: ${CLUSTER_NAME}-cp
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: VirtinkCluster
-    name: sample
+    name: ${CLUSTER_NAME}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkCluster
 metadata:
-  name: sample
-spec: {}
+  name: ${CLUSTER_NAME}
+spec:
+  conrolPlaneServiceType: LoadBalancer
+  infraClusterSecretRef:
+    name: ${VIRTINK_INFRA_CLUSTER_SECRET_NAME}
+    namespace: ${VIRTINK_INFRA_CLUSTER_SECRET_NAMESPACE}
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
 metadata:
-  name: sample-cp
+  name: ${CLUSTER_NAME}-cp
 spec:
-  replicas: 3
-  version: 1.24.0
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  version: ${KUBERNETES_VERSION}
   machineTemplate:
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
       kind: VirtinkMachineTemplate
-      name: sample-cp
+      name: ${CLUSTER_NAME}-cp
   kubeadmConfigSpec:
     initConfiguration:
       nodeRegistration:
@@ -52,7 +56,7 @@ spec:
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkMachineTemplate
 metadata:
-  name: sample-cp
+  name: ${CLUSTER_NAME}-cp
 spec:
   template:
     spec:
@@ -65,12 +69,12 @@ spec:
             path: /readyz
         instance:
           cpu:
-            sockets: 1
-            coresPerSocket: 2
+            sockets: ${VIRTINK_MACHINE_CPU_COUNT}
+            coresPerSocket: 1
           memory:
-            size: 2Gi
+            size: ${VIRTINK_MACHINE_MEMORY_SIZE}
           kernel:
-            image: smartxworks/capch-kernel-5.15.12
+            image: ${VIRTINK_MACHINE_KERNEL_IMAGE}
             cmdline: console=ttyS0 root=/dev/vda rw
           disks:
             - name: rootfs
@@ -79,8 +83,8 @@ spec:
         volumes:
           - name: rootfs
             containerRootfs:
-              image: smartxworks/capch-rootfs-1.24.0
-              size: 4Gi
+              image: ${VIRTINK_MACHINE_ROOTFS_IMAGE}
+              size: ${VIRTINK_MACHINE_ROOTFS_SIZE}
         networks:
           - name: pod
             pod: {}
@@ -88,29 +92,29 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
-  name: sample-md
+  name: ${CLUSTER_NAME}-md
 spec:
-  clusterName: sample
-  replicas: 3
+  clusterName: ${CLUSTER_NAME}
+  replicas: ${WORKER_MACHINE_COUNT}
   selector: {}
   template:
     spec:
-      clusterName: sample
-      version: 1.24.0
+      clusterName: ${CLUSTER_NAME}
+      version: ${KUBERNETES_VERSION}
       bootstrap:
         configRef:
           apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
           kind: KubeadmConfigTemplate
-          name: sample-md
+          name: ${CLUSTER_NAME}-md
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: VirtinkMachineTemplate
-        name: sample-md
+        name: ${CLUSTER_NAME}-md
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
-  name: sample-md
+  name: ${CLUSTER_NAME}-md
 spec:
   template:
     spec:
@@ -124,7 +128,7 @@ spec:
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkMachineTemplate
 metadata:
-  name: sample-md
+  name: ${CLUSTER_NAME}-md
 spec:
   template:
     spec:
@@ -132,12 +136,12 @@ spec:
         runPolicy: Once
         instance:
           cpu:
-            sockets: 1
-            coresPerSocket: 2
+            sockets: ${VIRTINK_MACHINE_CPU_COUNT}
+            coresPerSocket: 1
           memory:
-            size: 2Gi
+            size: ${VIRTINK_MACHINE_MEMORY_SIZE}
           kernel:
-            image: smartxworks/capch-kernel-5.15.12
+            image: ${VIRTINK_MACHINE_KERNEL_IMAGE}
             cmdline: console=ttyS0 root=/dev/vda rw
           disks:
             - name: rootfs
@@ -146,8 +150,8 @@ spec:
         volumes:
           - name: rootfs
             containerRootfs:
-              image: smartxworks/capch-rootfs-1.24.0
-              size: 4Gi
+              image: ${VIRTINK_MACHINE_ROOTFS_IMAGE}
+              size: ${VIRTINK_MACHINE_ROOTFS_SIZE}
         networks:
           - name: pod
             pod: {}

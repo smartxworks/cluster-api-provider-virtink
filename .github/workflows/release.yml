@@ -32,8 +32,12 @@ jobs:
       - run: |
           curl -sLo /tmp/skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
           chmod +x /tmp/skaffold
-          /tmp/skaffold render --default-repo=smartxworks --offline=true > capch.yaml
+          /tmp/skaffold render --default-repo=smartxworks --offline=true > infrastructure-components.yaml
 
       - uses: softprops/action-gh-release@v1
         with:
-          files: capch.yaml
+          files: |
+            infrastructure-components.yaml
+            metadata.yaml
+            templates/cluster-template.yaml
+            templates/cluster-template-external.yaml
