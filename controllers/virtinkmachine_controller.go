@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 
 	virtv1alpha1 "github.com/smartxworks/virtink/pkg/apis/virt/v1alpha1"
@@ -35,6 +36,7 @@ type VirtinkMachineReconciler struct {
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;list;watch
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines/status,verbs=get
 //+kubebuilder:rbac:groups=virt.virtink.smartx.com,resources=virtualmachines,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -67,71 +69,120 @@ func (r *VirtinkMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine) error {
-	if !machine.DeletionTimestamp.IsZero() {
-		return nil
-	}
-
-	ownerMachine, err := capiutil.GetOwnerMachine(ctx, r.Client, machine.ObjectMeta)
-	if err != nil {
-		return fmt.Errorf("get owner Machine: %s", err)
-	}
-	if ownerMachine == nil {
-		return fmt.Errorf("owner Machine is nil")
-	}
-
-	ownerCluster, err := capiutil.GetClusterFromMetadata(ctx, r.Client, machine.ObjectMeta)
-	if err != nil {
-		return fmt.Errorf("get owner Cluster: %s", err)
-	}
-	if ownerCluster == nil {
-		return fmt.Errorf("owner Cluster is nil")
-	}
-	if !ownerCluster.Status.InfrastructureReady {
-		return fmt.Errorf("owner Cluster is not ready")
-	}
-
-	if ownerMachine.Spec.Bootstrap.DataSecretName == nil {
-		return fmt.Errorf("bootstrap data is nil")
-	}
-
-	var vm virtv1alpha1.VirtualMachine
-	vmKey := types.NamespacedName{
-		Name:      machine.Name,
-		Namespace: machine.Namespace,
-	}
-	vmNotFound := false
-	if err := r.Get(ctx, vmKey, &vm); err != nil {
-		if apierrors.IsNotFound(err) {
-			vmNotFound = true
-		} else {
-			return fmt.Errorf("get VM: %s", err)
-		}
-	}
-
-	if !vmNotFound && !metav1.IsControlledBy(&vm, machine) {
-		vmNotFound = true
-	}
-
-	if vmNotFound {
-		vm, err := r.buildVM(ctx, machine, ownerMachine)
+	infraClusterClient := r.Client
+	var ownerMachine *capiv1beta1.Machine
+	var ownerCluster *capiv1beta1.Cluster
+	if controllerutil.ContainsFinalizer(machine, finalizer) {
+		m, err := capiutil.GetOwnerMachine(ctx, r.Client, machine.ObjectMeta)
 		if err != nil {
-			return fmt.Errorf("build VM: %s", err)
+			return fmt.Errorf("get owner Machine: %s", err)
+		}
+		if m == nil {
+			return fmt.Errorf("owner Machine is nil")
+		}
+		ownerMachine = m
+
+		c, err := capiutil.GetClusterFromMetadata(ctx, r.Client, machine.ObjectMeta)
+		if err != nil {
+			return fmt.Errorf("get owner Cluster: %s", err)
+		}
+		if c == nil {
+			return fmt.Errorf("owner Cluster is nil")
+		}
+		ownerCluster = c
+
+		var cluster infrastructurev1beta1.VirtinkCluster
+		clusterKey := types.NamespacedName{
+			Name:      ownerCluster.Spec.InfrastructureRef.Name,
+			Namespace: ownerCluster.Spec.InfrastructureRef.Namespace,
+		}
+		if err := r.Get(ctx, clusterKey, &cluster); err != nil {
+			return fmt.Errorf("get Cluster: %s", err)
 		}
 
-		vm.Name = vmKey.Name
-		vm.Namespace = vmKey.Namespace
-		if err := controllerutil.SetControllerReference(machine, vm, r.Scheme); err != nil {
-			return fmt.Errorf("set VM controller reference: %s", err)
+		if cluster.Spec.InfraClusterSecretRef != nil {
+			c, err := buildInfraClusterClient(ctx, r.Client, cluster.Spec.InfraClusterSecretRef)
+			if err != nil {
+				return fmt.Errorf("build infra cluster client: %s", err)
+			}
+			infraClusterClient = c
 		}
-		if err := r.Create(ctx, vm); err != nil {
-			return fmt.Errorf("create VM: %s", err)
+	}
+
+	if !machine.DeletionTimestamp.IsZero() {
+		if controllerutil.ContainsFinalizer(machine, finalizer) {
+			var vm virtv1alpha1.VirtualMachine
+			vmKey := types.NamespacedName{
+				Name:      machine.Name,
+				Namespace: machine.Namespace,
+			}
+			vmNotFound := false
+			if err := infraClusterClient.Get(ctx, vmKey, &vm); err != nil {
+				if apierrors.IsNotFound(err) {
+					vmNotFound = true
+				} else {
+					return fmt.Errorf("get VM: %s", err)
+				}
+			}
+
+			if !vmNotFound {
+				if err := infraClusterClient.Delete(ctx, &vm); err != nil {
+					return fmt.Errorf("delete VM: %s", err)
+				}
+				r.Recorder.Eventf(machine, corev1.EventTypeNormal, "DeletedVM", "Deleted VM %q", vm.Name)
+			}
+
+			controllerutil.RemoveFinalizer(machine, finalizer)
 		}
-		r.Recorder.Eventf(machine, corev1.EventTypeNormal, "CreatedVM", "Create VM %q", vm.Name)
 	} else {
-		providerID := fmt.Sprintf("virtink://%s", vm.UID)
+		if !controllerutil.ContainsFinalizer(machine, finalizer) {
+			controllerutil.AddFinalizer(machine, finalizer)
+			return nil
+		}
+
+		if !ownerCluster.Status.InfrastructureReady {
+			return fmt.Errorf("owner Cluster is not ready")
+		}
+
+		if ownerMachine.Spec.Bootstrap.DataSecretName == nil {
+			return fmt.Errorf("bootstrap data is nil")
+		}
+
+		var vm virtv1alpha1.VirtualMachine
+		vmKey := types.NamespacedName{
+			Name:      machine.Name,
+			Namespace: machine.Namespace,
+		}
+		vmNotFound := false
+		if err := infraClusterClient.Get(ctx, vmKey, &vm); err != nil {
+			if apierrors.IsNotFound(err) {
+				vmNotFound = true
+			} else {
+				return fmt.Errorf("get VM: %s", err)
+			}
+		}
+
+		vmUID := vm.UID
+		if vmNotFound {
+			vm, err := r.buildVM(ctx, machine, ownerMachine)
+			if err != nil {
+				return fmt.Errorf("build VM: %s", err)
+			}
+
+			vm.Name = vmKey.Name
+			vm.Namespace = vmKey.Namespace
+			if err := infraClusterClient.Create(ctx, vm); err != nil {
+				return fmt.Errorf("create VM: %s", err)
+			}
+			r.Recorder.Eventf(machine, corev1.EventTypeNormal, "CreatedVM", "Created VM %q", vm.Name)
+			vmUID = vm.UID
+		}
+
+		providerID := fmt.Sprintf("virtink://%s", vmUID)
 		machine.Spec.ProviderID = &providerID
 		machine.Status.Ready = true
 	}
+
 	return nil
 }
 
@@ -143,6 +194,16 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 		},
 		Spec: machine.Spec.VMSpec,
 	}
+
+	var secret corev1.Secret
+	secretKey := types.NamespacedName{
+		Namespace: machine.Namespace,
+		Name:      *ownerMachine.Spec.Bootstrap.DataSecretName,
+	}
+	if err := r.Get(ctx, secretKey, &secret); err != nil {
+		return nil, fmt.Errorf("get bootstrap Secret: %s", err)
+	}
+
 	vm.Spec.Instance.Disks = append(vm.Spec.Instance.Disks, virtv1alpha1.Disk{
 		Name: "cloud-init",
 	})
@@ -150,7 +211,7 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 		Name: "cloud-init",
 		VolumeSource: virtv1alpha1.VolumeSource{
 			CloudInit: &virtv1alpha1.CloudInitVolumeSource{
-				UserDataSecretName: *ownerMachine.Spec.Bootstrap.DataSecretName,
+				UserDataBase64: base64.StdEncoding.EncodeToString(secret.Data["value"]),
 			},
 		},
 	})
@@ -161,6 +222,5 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 func (r *VirtinkMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrastructurev1beta1.VirtinkMachine{}).
-		Owns(&virtv1alpha1.VirtualMachine{}).
 		Complete(r)
 }
