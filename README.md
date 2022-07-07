@@ -27,7 +27,7 @@ providers:
 Initialize common providers.
 
 ```shell
-clusterctl init --infrastructure virtink:v0.1.1
+clusterctl init --infrastructure virtink:v0.2.0
 ```
 
 Create workload cluster template.
