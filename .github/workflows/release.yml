@@ -42,3 +42,4 @@ jobs:
             metadata.yaml
             templates/cluster-template.yaml
             templates/cluster-template-external.yaml
+            templates/cluster-template-mhc.yaml
