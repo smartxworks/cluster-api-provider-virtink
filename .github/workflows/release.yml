@@ -27,6 +27,7 @@ jobs:
         with:
           file: Dockerfile
           tags: docker.io/smartxworks/capch-controller:${{ steps.get_version.outputs.version }}
+          platforms: linux/amd64,linux/arm64
           push: true
 
       - run: |
