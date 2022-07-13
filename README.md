@@ -22,7 +22,7 @@ providers:
     type: "InfrastructureProvider"
 ```
 
-## Environment variables
+## Environment Variables
 
 Except for the [common variables](https://cluster-api.sigs.k8s.io/clusterctl/provider-contract.html#common-variables) provided by Cluster API, you can further customize your workload cluster on Virtink with following environment variables:
 
