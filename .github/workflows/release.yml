@@ -41,5 +41,4 @@ jobs:
             infrastructure-components.yaml
             metadata.yaml
             templates/cluster-template.yaml
-            templates/cluster-template-external.yaml
-            templates/cluster-template-mhc.yaml
+            templates/cluster-template-internal.yaml

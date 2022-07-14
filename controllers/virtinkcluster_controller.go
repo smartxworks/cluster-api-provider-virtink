@@ -198,13 +198,8 @@ func buildInfraClusterClient(ctx context.Context, c client.Client, infraClusterS
 }
 
 func (r *VirtinkClusterReconciler) buildControlPlaneService(ctx context.Context, cluster *infrastructurev1beta1.VirtinkCluster, ownerCluster *capiv1beta1.Cluster) (*corev1.Service, error) {
-	serviceType := corev1.ServiceTypeNodePort
-	if cluster.Spec.ControlPlaneServiceType != nil {
-		serviceType = *cluster.Spec.ControlPlaneServiceType
-	}
-	return &corev1.Service{
+	service := &corev1.Service{
 		Spec: corev1.ServiceSpec{
-			Type: serviceType,
 			Selector: map[string]string{
 				capiv1beta1.ClusterLabelName:             ownerCluster.Name,
 				capiv1beta1.MachineControlPlaneLabelName: "",
@@ -214,7 +209,11 @@ func (r *VirtinkClusterReconciler) buildControlPlaneService(ctx context.Context,
 				TargetPort: intstr.FromInt(6443),
 			}},
 		},
-	}, nil
+	}
+	if cluster.Spec.ControlPlaneServiceType != nil {
+		service.Spec.Type = *cluster.Spec.ControlPlaneServiceType
+	}
+	return service, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

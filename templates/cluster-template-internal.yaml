@@ -1,58 +1,59 @@
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
-  name: ${CLUSTER_NAME}
+  name: "${CLUSTER_NAME}"
 spec:
   clusterNetwork:
-    services:
-      cidrBlocks: ["${VIRTINK_SERVICE_CIDR}"]
     pods:
-      cidrBlocks: ["${VIRTINK_POD_NETWORK_CIDR}"]
-  controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
-    kind: KubeadmControlPlane
-    name: ${CLUSTER_NAME}-cp
+      cidrBlocks: ["${POD_NETWORK_CIDR:=192.168.0.0/16}"]
+    services:
+      cidrBlocks: ["${SERVICE_CIDR:=10.96.0.0/12}"]
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: VirtinkCluster
-    name: ${CLUSTER_NAME}
+    name: "${CLUSTER_NAME}"
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: "${CLUSTER_NAME}-cp"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkCluster
 metadata:
-  name: ${CLUSTER_NAME}
-spec: {}
+  name: "${CLUSTER_NAME}"
+spec:
+  conrolPlaneServiceType: "${VIRTINK_CONTROL_PLANE_SERVICE_TYPE:=NodePort}"
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
 metadata:
-  name: ${CLUSTER_NAME}-cp
+  name: "${CLUSTER_NAME}-cp"
 spec:
+  version: "${KUBERNETES_VERSION:=1.24.0}"
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
-  version: ${KUBERNETES_VERSION}
   machineTemplate:
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
       kind: VirtinkMachineTemplate
-      name: ${CLUSTER_NAME}-cp
+      name: "${CLUSTER_NAME}-cp"
   kubeadmConfigSpec:
     initConfiguration:
       nodeRegistration:
         kubeletExtraArgs:
-          provider-id: virtink://{{ ds.meta_data.instance_id }}
+          provider-id: "virtink://{{ ds.meta_data.instance_id }}"
         ignorePreflightErrors:
           - SystemVerification
     joinConfiguration:
       nodeRegistration:
         kubeletExtraArgs:
-          provider-id: virtink://{{ ds.meta_data.instance_id }}
+          provider-id: "virtink://{{ ds.meta_data.instance_id }}"
         ignorePreflightErrors:
           - SystemVerification
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkMachineTemplate
 metadata:
-  name: ${CLUSTER_NAME}-cp
+  name: "${CLUSTER_NAME}-cp"
 spec:
   template:
     spec:
@@ -75,13 +76,13 @@ spec:
             path: /readyz
         instance:
           cpu:
-            sockets: ${VIRTINK_MACHINE_CPU_COUNT}
-            coresPerSocket: 1
+            sockets: 1
+            coresPerSocket: ${VIRTINK_CONTROL_PLANE_MACHINE_CPU_CORES:=2}
           memory:
-            size: ${VIRTINK_MACHINE_MEMORY_SIZE}
+            size: ${VIRTINK_CONTROL_PLANE_MACHINE_MEMORY_SIZE:=4Gi}
           kernel:
-            image: ${VIRTINK_MACHINE_KERNEL_IMAGE}
-            cmdline: console=ttyS0 root=/dev/vda rw
+            image: "${VIRTINK_CONTROL_PLANE_MACHINE_KERNEL_IMAGE:=smartxworks/capch-kernel-5.15.12}"
+            cmdline: "console=ttyS0 root=/dev/vda rw"
           disks:
             - name: rootfs
           interfaces:
@@ -89,8 +90,8 @@ spec:
         volumes:
           - name: rootfs
             containerRootfs:
-              image: ${VIRTINK_MACHINE_ROOTFS_IMAGE}
-              size: ${VIRTINK_MACHINE_ROOTFS_SIZE}
+              image: "${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_IMAGE:=smartxworks/capch-rootfs-1.24.0}"
+              size: ${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_SIZE:=4Gi}
         networks:
           - name: pod
             pod: {}
@@ -98,14 +99,12 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineHealthCheck
 metadata:
-  name: ${CLUSTER_NAME}-control-plane-unhealthy-5m
+  name: "${CLUSTER_NAME}-cp-unhealthy-5m"
 spec:
-  clusterName: ${CLUSTER_NAME}
-  maxUnhealthy: 50%
+  clusterName: "${CLUSTER_NAME}"
   selector:
-    matchExpressions:
-      - key: cluster.x-k8s.io/control-plane
-        operator: Exists
+    matchLabels:
+      cluster.x-k8s.io/control-plane: ""
   unhealthyConditions:
     - type: Ready
       status: Unknown
@@ -117,57 +116,70 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
-  name: ${CLUSTER_NAME}-md
+  name: "${CLUSTER_NAME}-md-0"
 spec:
-  clusterName: ${CLUSTER_NAME}
+  clusterName: "${CLUSTER_NAME}"
   replicas: ${WORKER_MACHINE_COUNT}
-  selector: {}
+  selector:
+    matchLabels: {}
   template:
     spec:
-      clusterName: ${CLUSTER_NAME}
-      version: ${KUBERNETES_VERSION}
+      clusterName: "${CLUSTER_NAME}"
+      version: "${KUBERNETES_VERSION:=1.24.0}"
       bootstrap:
         configRef:
           apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
           kind: KubeadmConfigTemplate
-          name: ${CLUSTER_NAME}-md
+          name: "${CLUSTER_NAME}-md-0"
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: VirtinkMachineTemplate
-        name: ${CLUSTER_NAME}-md
+        name: "${CLUSTER_NAME}-md-0"
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
-  name: ${CLUSTER_NAME}-md
+  name: "${CLUSTER_NAME}-md-0"
 spec:
   template:
     spec:
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            provider-id: virtink://{{ ds.meta_data.instance_id }}
+            provider-id: "virtink://{{ ds.meta_data.instance_id }}"
           ignorePreflightErrors:
             - SystemVerification
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkMachineTemplate
 metadata:
-  name: ${CLUSTER_NAME}-md
+  name: "${CLUSTER_NAME}-md-0"
 spec:
   template:
     spec:
       vmSpec:
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchExpressions:
+                      - key: cluster.x-k8s.io/deployment-name
+                        operator: In
+                        values:
+                          - "${CLUSTER_NAME}-md-0"
         runPolicy: Once
         instance:
           cpu:
-            sockets: ${VIRTINK_MACHINE_CPU_COUNT}
-            coresPerSocket: 1
+            sockets: 1
+            coresPerSocket: ${VIRTINK_WORKER_MACHINE_CPU_CORES:=2}
           memory:
-            size: ${VIRTINK_MACHINE_MEMORY_SIZE}
+            size: ${VIRTINK_WORKER_MACHINE_MEMORY_SIZE:=4Gi}
           kernel:
-            image: ${VIRTINK_MACHINE_KERNEL_IMAGE}
-            cmdline: console=ttyS0 root=/dev/vda rw
+            image: "${VIRTINK_WORKER_MACHINE_KERNEL_IMAGE:=smartxworks/capch-kernel-5.15.12}"
+            cmdline: "console=ttyS0 root=/dev/vda rw"
           disks:
             - name: rootfs
           interfaces:
@@ -175,8 +187,8 @@ spec:
         volumes:
           - name: rootfs
             containerRootfs:
-              image: ${VIRTINK_MACHINE_ROOTFS_IMAGE}
-              size: ${VIRTINK_MACHINE_ROOTFS_SIZE}
+              image: "${VIRTINK_WORKER_MACHINE_ROOTFS_IMAGE:=smartxworks/capch-rootfs-1.24.0}"
+              size: ${VIRTINK_WORKER_MACHINE_ROOTFS_SIZE:=4Gi}
         networks:
           - name: pod
             pod: {}
@@ -184,13 +196,12 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineHealthCheck
 metadata:
-  name: ${CLUSTER_NAME}-worker-unhealthy-5m
+  name: "${CLUSTER_NAME}-md-0-unhealthy-5m"
 spec:
-  clusterName: ${CLUSTER_NAME}
+  clusterName: "${CLUSTER_NAME}"
   selector:
-    matchExpressions:
-      - key: cluster.x-k8s.io/control-plane
-        operator: DoesNotExist
+    matchLabels:
+      cluster.x-k8s.io/deployment-name: "${CLUSTER_NAME}-md-0"
   unhealthyConditions:
     - type: Ready
       status: Unknown
