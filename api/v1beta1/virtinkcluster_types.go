@@ -20,7 +20,7 @@ type VirtinkClusterSpec struct {
 	// ControlPlaneServiceType can be used to modify type of service that fronts the control plane nodes to handle the
 	// api-server traffic (port 6443). This field is optional, by default control plane nodes will use a service
 	// of type ClusterIP, which will make workload cluster only accessible within the same cluster.
-	ControlPlaneServiceType *corev1.ServiceType `json:"conrolPlaneServiceType,omitempty"`
+	ControlPlaneServiceType *corev1.ServiceType `json:"controlPlaneServiceType,omitempty"`
 
 	// InfraClusterSecretRef is a reference to a secret with a kubeconfig for external cluster used for infra.
 	InfraClusterSecretRef *corev1.ObjectReference `json:"infraClusterSecretRef,omitempty"`

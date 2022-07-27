@@ -45,13 +45,6 @@ spec:
           spec:
             description: VirtinkClusterSpec defines the desired state of VirtinkCluster
             properties:
-              conrolPlaneServiceType:
-                description: ControlPlaneServiceType can be used to modify type of
-                  service that fronts the control plane nodes to handle the api-server
-                  traffic (port 6443). This field is optional, by default control
-                  plane nodes will use a service of type ClusterIP, which will make
-                  workload cluster only accessible within the same cluster.
-                type: string
               controlPlaneEndpoint:
                 description: ControlPlaneEndpoint represents the endpoint used to
                   communicate with the control plane.
@@ -67,6 +60,13 @@ spec:
                 - host
                 - port
                 type: object
+              controlPlaneServiceType:
+                description: ControlPlaneServiceType can be used to modify type of
+                  service that fronts the control plane nodes to handle the api-server
+                  traffic (port 6443). This field is optional, by default control
+                  plane nodes will use a service of type ClusterIP, which will make
+                  workload cluster only accessible within the same cluster.
+                type: string
               infraClusterSecretRef:
                 description: InfraClusterSecretRef is a reference to a secret with
                   a kubeconfig for external cluster used for infra.
