@@ -57,7 +57,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./api/... ./controllers/... -coverprofile cover.out
 
 ##@ Build
 
@@ -111,15 +111,20 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+GINKGO ?= $(LOCALBIN)/ginkgo
+KIND ?= $(LOCALBIN)/kind
+KUBECTL ?= $(LOCALBIN)/kubectl
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v3.8.7
+KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.8.0
+GINKGO_VERSION ?= v1.16.5
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
+	rm -rf $(KUSTOMIZE)
 	curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
 
 .PHONY: controller-gen
@@ -131,3 +136,56 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: ginkgo
+ginkgo: $(GINKGO)
+$(GINKGO): $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/ginkgo@$(GINKGO_VERSION)
+
+.PHONY: kind
+kind: $(KIND)
+$(KIND): $(LOCALBIN)
+	curl -sLo $(KIND) https://kind.sigs.k8s.io/dl/v0.14.0/kind-linux-amd64 && chmod +x $(KIND)
+
+.PHONY: kubectl
+kubectl: $(KUBECTL)
+$(KUBECTL): $(LOCALBIN)
+	curl -sLo $(KUBECTL) https://dl.k8s.io/release/v1.24.0/bin/linux/amd64/kubectl && chmod +x $(KUBECTL)
+
+.PHONY: e2e-image
+e2e-image:
+	docker buildx build -t docker.io/smartxworks/capch-controller:e2e .
+
+REPO_ROOT := $(shell pwd )
+E2E_CLUSTER_TEMPLATE_DIR ?= $(REPO_ROOT)/test/e2e/data/infrastructure-virtink
+
+.PHONY: e2e-cluster-templates-v1alpha1
+e2e-cluster-templates-v1alpha1: $(KUSTOMIZE) ## Generate cluster templates for v1beta1
+	$(KUSTOMIZE) build $(E2E_CLUSTER_TEMPLATE_DIR)/v1alpha1/cluster-template-internal --load-restrictor LoadRestrictionsNone > $(E2E_CLUSTER_TEMPLATE_DIR)/v1alpha1/cluster-template-internal.yaml
+	$(KUSTOMIZE) build $(E2E_CLUSTER_TEMPLATE_DIR)/v1alpha1/cluster-template --load-restrictor LoadRestrictionsNone > $(E2E_CLUSTER_TEMPLATE_DIR)/v1alpha1/cluster-template.yaml
+
+SKIP_RESOURCE_CLEANUP ?= false
+CERT_MANAGER_MANIFEST ?= https://github.com/cert-manager/cert-manager/releases/download/v1.8.2/cert-manager.yaml
+VIRTINK_MANIFEST ?= https://github.com/smartxworks/virtink/releases/download/v0.8.0/virtink.yaml	
+E2E_KIND_CLUSTER_NAME ?= capch-e2e-$(shell date "+%Y-%m-%d-%H-%M-%S")
+E2E_KIND_CLUSTER_KUBECONFIG := /tmp/$(E2E_KIND_CLUSTER_NAME).kubeconfig
+
+.PHONY: e2e
+e2e: kind e2e-image kubectl kustomize ginkgo e2e-cluster-templates-v1alpha1
+	echo "e2e kind cluster: $(E2E_KIND_CLUSTER_NAME)"
+
+	$(KIND) create cluster --config test/e2e/config/kind/config.yaml --name $(E2E_KIND_CLUSTER_NAME) --kubeconfig $(E2E_KIND_CLUSTER_KUBECONFIG)
+	$(KIND) load docker-image --name $(E2E_KIND_CLUSTER_NAME) docker.io/smartxworks/capch-controller:e2e
+
+	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) apply -f test/e2e/data/cni/calico/calico.yaml
+	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) apply -f $(CERT_MANAGER_MANIFEST)
+	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) wait -n cert-manager deployment cert-manager-webhook --for condition=Available --timeout -1s
+	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) apply -f $(VIRTINK_MANIFEST)
+	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) wait -n virtink-system deployment virt-controller --for condition=Available --timeout -1s
+
+	PATH=$(LOCALBIN):$(PATH) KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(GINKGO) -v -trace -tags=e2e ./test/e2e -- \
+		-e2e.artifacts-folder="$(REPO_ROOT)/_artifacts" \
+		-e2e.config="$(REPO_ROOT)/test/e2e/config/virtink.yaml" \
+		-e2e.skip-resource-cleanup=$(SKIP_RESOURCE_CLEANUP)
+
+	$(KIND) delete cluster --name $(E2E_KIND_CLUSTER_NAME)
