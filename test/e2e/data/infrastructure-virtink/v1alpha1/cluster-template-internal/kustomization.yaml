@@ -1,0 +1,7 @@
+resources:
+- ../../../../../../templates/cluster-template-internal.yaml
+- ../common/cluster-resource-set.yaml
+
+patchesStrategicMerge:
+- ../common/crs-cni-label.yaml
+- ../common/disable-mhc.yaml

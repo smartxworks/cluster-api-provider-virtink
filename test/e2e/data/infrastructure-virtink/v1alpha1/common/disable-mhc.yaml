@@ -1,0 +1,25 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineHealthCheck
+metadata:
+  name: "${CLUSTER_NAME}-cp-unhealthy-5m"
+spec:
+  unhealthyConditions:
+    - type: Ready
+      status: Unknown
+      timeout: 3600s
+    - type: Ready
+      status: "False"
+      timeout: 3600s
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineHealthCheck
+metadata:
+  name: "${CLUSTER_NAME}-md-0-unhealthy-5m"
+spec:
+  unhealthyConditions:
+    - type: Ready
+      status: Unknown
+      timeout: 3600s
+    - type: Ready
+      status: "False"
+      timeout: 3600s

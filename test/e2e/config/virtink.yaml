@@ -1,0 +1,71 @@
+providers:
+  - name: cluster-api
+    type: CoreProvider
+    versions:
+      - name: v1.2.0
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.2.0/core-components.yaml"
+        type: "url"
+        contract: v1beta1
+        files:
+          - sourcePath: "../data/shared/metadata.yaml"
+        replacements:
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+  - name: kubeadm
+    type: BootstrapProvider
+    versions:
+      - name: v1.2.0
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.2.0/bootstrap-components.yaml"
+        type: "url"
+        contract: "v1beta1"
+        files:
+          - sourcePath: "../data/shared/metadata.yaml"
+        replacements:
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+  - name: kubeadm
+    type: ControlPlaneProvider
+    versions:
+      - name: v1.2.0
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.2.0/control-plane-components.yaml"
+        type: "url"
+        files:
+          - sourcePath: "../data/shared/metadata.yaml"
+        replacements:
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+  - name: virtink 
+    type: InfrastructureProvider
+    versions:
+      - name: v0.3.0
+        value: ../../../config/default
+        contract: v1beta1
+        replacements:
+          - old: capch-controller:latest
+            new: docker.io/smartxworks/capch-controller:e2e
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+        files:
+          - sourcePath: "../data/infrastructure-virtink/v1alpha1/cluster-template-internal.yaml"
+          - sourcePath: "../data/infrastructure-virtink/v1alpha1/cluster-template.yaml"
+          - sourcePath: "../../../metadata.yaml"
+
+variables:
+  KUBERNETES_VERSION: "v1.24.0"
+  CNI: "./data/cni/calico/calico.yaml"
+  EXP_CLUSTER_RESOURCE_SET: "true"
+  CONTROL_PLANE_MACHINE_COUNT: 1
+  WORKER_MACHINE_COUNT: 1
+  POD_NETWORK_CIDR: "172.29.0.0/16"
+  SERVICE_CIDR: "10.112.0.0/12"
+
+intervals:
+  default/wait-controllers: ["5m", "10s"]
+  default/wait-cluster: ["5m", "10s"]
+  default/wait-control-plane: ["30m", "10s"]
+  default/wait-worker-nodes: ["30m", "10s"]
+  default/wait-delete-cluster: ["5m", "10s"]
+  default/wait-machine-upgrade: ["15m", "1m"]
+  default/wait-machine-remediation: ["5m", "10s"]
+  node-drain/wait-deployment-available: [ "3m", "10s" ]
+  node-drain/wait-machine-deleted: [ "2m", "10s" ]

@@ -1,4 +1,6 @@
 infrastructure-components.yaml
+_artifacts
+test/e2e/data/infrastructure-virtink/v1alpha1/cluster-template*.yaml
 
 # Binaries for programs and plugins
 *.exe
