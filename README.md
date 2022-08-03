@@ -24,6 +24,8 @@ Check out the [getting started guide](https://github.com/kubernetes-sigs/cluster
 >     type: "InfrastructureProvider"
 > ```
 
+An external Virtink cluster is recommended for infrastructure, further details can be found in the [external cluster documentation](docs/external-cluster.md). For an internal Virtink cluster, use `clusterctl generate cluster --infrastructure virtink --flavor internal capi-quickstart` to generate workload cluster configuration.
+
 ## Environment Variables
 
 Except for the [common variables](https://cluster-api.sigs.k8s.io/clusterctl/provider-contract.html#common-variables) provided by Cluster API, you can further customize your workload cluster on Virtink with following environment variables:
