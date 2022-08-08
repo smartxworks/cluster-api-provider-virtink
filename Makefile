@@ -114,6 +114,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 GINKGO ?= $(LOCALBIN)/ginkgo
 KIND ?= $(LOCALBIN)/kind
 KUBECTL ?= $(LOCALBIN)/kubectl
+CMCTL ?= $(LOCALBIN)/cmctl
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
@@ -152,6 +153,13 @@ kubectl: $(KUBECTL)
 $(KUBECTL): $(LOCALBIN)
 	curl -sLo $(KUBECTL) https://dl.k8s.io/release/v1.24.0/bin/linux/amd64/kubectl && chmod +x $(KUBECTL)
 
+.PHONY: cmctl
+cmctl: $(CMCTL)
+$(CMCTL): $(LOCALBIN)
+	curl -sLo cmctl.tar.gz https://github.com/cert-manager/cert-manager/releases/download/v1.8.2/cmctl-linux-amd64.tar.gz
+	tar xzf cmctl.tar.gz -C $(LOCALBIN)
+	rm -rf cmctl.tar.gz
+
 .PHONY: e2e-image
 e2e-image:
 	docker buildx build -t docker.io/smartxworks/capch-controller:e2e .
@@ -171,7 +179,7 @@ E2E_KIND_CLUSTER_NAME ?= capch-e2e-$(shell date "+%Y-%m-%d-%H-%M-%S")
 E2E_KIND_CLUSTER_KUBECONFIG := /tmp/$(E2E_KIND_CLUSTER_NAME).kubeconfig
 
 .PHONY: e2e
-e2e: kind e2e-image kubectl kustomize ginkgo e2e-cluster-templates-v1alpha1
+e2e: kind e2e-image kubectl cmctl kustomize ginkgo e2e-cluster-templates-v1alpha1
 	echo "e2e kind cluster: $(E2E_KIND_CLUSTER_NAME)"
 
 	$(KIND) create cluster --config test/e2e/config/kind/config.yaml --name $(E2E_KIND_CLUSTER_NAME) --kubeconfig $(E2E_KIND_CLUSTER_KUBECONFIG)
@@ -179,7 +187,7 @@ e2e: kind e2e-image kubectl kustomize ginkgo e2e-cluster-templates-v1alpha1
 
 	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) apply -f test/e2e/data/cni/calico/calico.yaml
 	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) apply -f $(CERT_MANAGER_MANIFEST)
-	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) wait -n cert-manager deployment cert-manager-webhook --for condition=Available --timeout -1s
+	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(CMCTL) check api --wait=10m
 	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) apply -f $(VIRTINK_MANIFEST)
 	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) wait -n virtink-system deployment virt-controller --for condition=Available --timeout -1s
 
