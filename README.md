@@ -13,14 +13,16 @@ The API itself is shared across multiple cloud providers allowing for true Virti
 
 ## Launching a Kubernetes cluster on Virtink
 
-Check out the [getting started guide](https://github.com/kubernetes-sigs/cluster-api-provider-vsphere/blob/main/docs/getting_started.md) for launching a cluster on Virtink. One thing to be noted is that since this project hasn't made to the official Cluster API provider list yet, you'll need to add it manually to the `clusterctl` configuration file (`$HOME/.cluster-api/clusterctl.yaml`), as shown below:
+Check out the [getting started guide](https://github.com/kubernetes-sigs/cluster-api-provider-vsphere/blob/main/docs/getting_started.md) for launching a cluster on Virtink.
 
-```yaml
-providers:
-  - name: "virtink"
-    url: "https://github.com/smartxworks/cluster-api-provider-virtink/releases/latest/infrastructure-components.yaml"
-    type: "InfrastructureProvider"
-```
+> **Note**: For `clusterctl` versions prior to v1.2.1, you'll need to add this provider manually to the `clusterctl` configuration file (`$HOME/.cluster-api/clusterctl.yaml`), as shown below:
+>
+> ```yaml
+> providers:
+>   - name: "virtink"
+>     url: "https://github.com/smartxworks/cluster-api-provider-virtink/releases/latest/infrastructure-components.yaml"
+>     type: "InfrastructureProvider"
+> ```
 
 ## Environment Variables
 
