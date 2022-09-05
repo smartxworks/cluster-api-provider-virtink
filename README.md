@@ -48,6 +48,26 @@ Except for the [common variables](https://cluster-api.sigs.k8s.io/clusterctl/pro
 | VIRTINK_WORKER_MACHINE_ROOTFS_IMAGE        | The rootfs image of worker machine (default `smartxworks/capch-rootfs-1.24.0`)                                       |
 | VIRTINK_WORKER_MACHINE_ROOTFS_SIZE         | The rootfs size of each worker machine (default `4Gi`)                                                               |
 
+## Launching a Kubernetes cluster on Virtink with persistent storage
+
+By default cluster-api-provider-virtink created Kubernetes Node is a Virtink VirtualMachine with [emptyDir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) as storage, that means when a Virtink VirtualMachine failed all data on it will lose and the Node can't be recovered. cluster-api-provider-virtink can provide Node with persistent storage by Virtink [dataVolume](https://github.com/smartxworks/virtink/blob/main/docs/disks_and_volumes.md#datavolume-volume) volume and CNI that support specify IP and MAC address for Pod.
+
+| Variable name                                  | Note                                                                                                                 |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_CDI_IMAGE | The rootfs image for CDI of control plane machine (default `smartxworks/capch-rootfs-cdi-1.24.0`)                    |
+| VIRTINK_WORKER_MACHINE_ROOTFS_CDI_IMAGE        | The rootfs image for CDI of worker machine (default `smartxworks/capch-rootfs-cdi-1.24.0`)                           |
+| VIRTINK_NODE_ADDRESSES                         | The IP addresses for nodes, if provided a node will use one of the IP address in this list during whole life cycle   |
+| VIRTINK_NODE_ADDRESS_ANNOTATIONS               | The CNI required annotations to specify IP and MAC address for pod, can use `$IP_ADDRESS` and `$MAC_ADDRESS` as placeholders which will be replaced by allocated IP and MAC                                                                                                                                        |
+
+This is an example to generate workload cluster configuration with persistent storage for an internal Virtink cluster that use Calico as CNI. You should be familiar with Calico [IP reservation](https://projectcalico.docs.tigera.io/reference/resources/ipreservation), Calico [use-specific-ip](https://projectcalico.docs.tigera.io/networking/use-specific-ip) for pod, and Calico [use-specific-mac-address](https://github.com/projectcalico/calico/blob/master/calico/networking/pod-mac-address.md) for pod.
+
+``` shell
+# replace to reserved IP addresses
+export VIRTINK_NODE_ADDRESSES='["172.22.161.241", "172.22.161.242"]'
+export VIRTINK_NODE_ADDRESS_ANNOTATIONS='["cni.projectcalico.org/ipAddrs=[\"$IP_ADDRESS\"]", "cni.projectcalico.org/hwAddr=$MAC_ADDRESS"]'
+clusterctl generate cluster --infrastructure virtink --flavor cdi-internal capi-quickstart
+```
+
 ## License
 
 This project is distributed under the [Apache License, Version 2.0](LICENSE).

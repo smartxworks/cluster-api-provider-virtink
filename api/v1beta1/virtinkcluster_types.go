@@ -24,6 +24,18 @@ type VirtinkClusterSpec struct {
 
 	// InfraClusterSecretRef is a reference to a secret with a kubeconfig for external cluster used for infra.
 	InfraClusterSecretRef *corev1.ObjectReference `json:"infraClusterSecretRef,omitempty"`
+	NodeAddressConfig     *NodeAddressConfig      `json:"nodeAddressConfig,omitempty"`
+}
+
+type NodeAddressConfig struct {
+	// Addresses is list of IP addresses for allocating to nested cluster nodes.
+	Addresses []string `json:"addresses,omitempty"`
+
+	// Annotations are CNI required annotations to specify static IP and MAC address for pod.
+	// can use $IP_ADDRESS as a placeholder for IP address, provider will replace it by allocated IP address.
+	// can use $MAC_ADDRESS as a placeholder for MAC address, provider will replace it by a self generated MAC address.
+	// eg: ["cni.projectcalico.org/ipAddrs=[\"$IP_ADDRESS\"]", "cni.projectcalico.org/hwAddr=$MAC_ADDRESS"]
+	Annotations []string `json:"annotations,omitempty"`
 }
 
 // VirtinkClusterStatus defines the observed state of VirtinkCluster

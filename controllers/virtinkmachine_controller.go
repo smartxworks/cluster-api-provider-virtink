@@ -2,8 +2,11 @@ package controllers
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"net"
+	"strings"
 
 	virtv1alpha1 "github.com/smartxworks/virtink/pkg/apis/virt/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capiutil "sigs.k8s.io/cluster-api/util"
 	capipatch "sigs.k8s.io/cluster-api/util/patch"
@@ -37,6 +41,7 @@ type VirtinkMachineReconciler struct {
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines/status,verbs=get
 //+kubebuilder:rbac:groups=virt.virtink.smartx.com,resources=virtualmachines,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+//+kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -148,6 +153,28 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 			return fmt.Errorf("bootstrap data is nil")
 		}
 
+		dataVolumes := r.buildDataVolumes(ctx, machine)
+		for _, dataVolume := range dataVolumes {
+			dataVolumeKey := types.NamespacedName{
+				Namespace: dataVolume.Namespace,
+				Name:      dataVolume.Name,
+			}
+			dataVolumeNotFound := false
+			createdDataVolume := cdiv1beta1.DataVolume{}
+			if err := r.Get(ctx, dataVolumeKey, &createdDataVolume); err != nil {
+				if !apierrors.IsNotFound(err) {
+					return fmt.Errorf("get DataVolume: %s", err)
+				}
+				dataVolumeNotFound = true
+			}
+			if dataVolumeNotFound {
+				if err := infraClusterClient.Create(ctx, dataVolume); err != nil {
+					return fmt.Errorf("create DataVolume: %s", err)
+				}
+				r.Recorder.Eventf(machine, corev1.EventTypeNormal, "CreatedDataVolume", "Created DataVolume %q", dataVolume.Name)
+			}
+		}
+
 		var vm virtv1alpha1.VirtualMachine
 		vmKey := types.NamespacedName{
 			Name:      machine.Name,
@@ -195,6 +222,12 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 		Spec: machine.Spec.VMSpec,
 	}
 
+	for i := range vm.Spec.Volumes {
+		if vm.Spec.Volumes[i].DataVolume != nil {
+			vm.Spec.Volumes[i].DataVolume.VolumeName = fmt.Sprintf("%s-%s", machine.Name, vm.Spec.Volumes[i].DataVolume.VolumeName)
+		}
+	}
+
 	var secret corev1.Secret
 	secretKey := types.NamespacedName{
 		Namespace: machine.Namespace,
@@ -215,7 +248,94 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 			},
 		},
 	})
+
+	var cluster infrastructurev1beta1.VirtinkCluster
+	clusterKey := types.NamespacedName{
+		Namespace: machine.Namespace,
+		Name:      ownerMachine.Spec.ClusterName,
+	}
+	if err := r.Client.Get(ctx, clusterKey, &cluster); err != nil {
+		return nil, err
+	}
+
+	if cluster.Spec.NodeAddressConfig == nil {
+		return vm, nil
+	}
+
+	var machineList infrastructurev1beta1.VirtinkMachineList
+	if err := r.Client.List(ctx, &machineList, client.InNamespace(machine.Namespace), client.MatchingLabels{"cluster.x-k8s.io/cluster-name": cluster.Name}); err != nil {
+		return nil, err
+	}
+
+	var isAddressUsedByMachine = func(m *infrastructurev1beta1.VirtinkMachine, addr string) bool {
+		for _, value := range m.Annotations {
+			if strings.Contains(value, addr) {
+				return true
+			}
+		}
+		return false
+	}
+
+	var nextAddress string
+	for _, addr := range cluster.Spec.NodeAddressConfig.Addresses {
+		var used bool
+		for _, virtinkMachine := range machineList.Items {
+			if isAddressUsedByMachine(&virtinkMachine, addr) {
+				used = true
+				break
+			}
+		}
+		if !used {
+			nextAddress = addr
+			break
+		}
+	}
+	if nextAddress == "" {
+		return nil, fmt.Errorf("no more available IP for %q", machine.Name)
+	}
+
+	macAddress, err := generateMAC()
+	if err != nil {
+		return nil, fmt.Errorf("generate MAC address: %s", err)
+	}
+
+	for _, anno := range cluster.Spec.NodeAddressConfig.Annotations {
+		items := strings.SplitN(anno, "=", 2)
+		if len(items) != 2 {
+			return nil, fmt.Errorf("invalid annotation template: %s", anno)
+		}
+		replacer := strings.NewReplacer("$IP_ADDRESS", nextAddress, "$MAC_ADDRESS", macAddress.String())
+		vm.Annotations[items[0]] = replacer.Replace(items[1])
+	}
+
 	return vm, nil
+}
+
+func (r *VirtinkMachineReconciler) buildDataVolumes(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine) []*cdiv1beta1.DataVolume {
+	dataVolumes := []*cdiv1beta1.DataVolume{}
+	for _, volume := range machine.Spec.VolumeTemplates {
+		switch {
+		case volume.DataVolume != nil:
+			dataVolume := cdiv1beta1.DataVolume{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: machine.Namespace,
+					Name:      fmt.Sprintf("%s-%s", machine.Name, volume.DataVolume.Name),
+				},
+				Spec: *volume.DataVolume.Spec.DeepCopy(),
+			}
+			dataVolumes = append(dataVolumes, &dataVolume)
+		}
+	}
+	return dataVolumes
+}
+
+func generateMAC() (net.HardwareAddr, error) {
+	prefix := []byte{0x52, 0x54, 0x00}
+	suffix := make([]byte, 3)
+	if _, err := rand.Read(suffix); err != nil {
+		return nil, fmt.Errorf("rand: %s", err)
+	}
+	return net.HardwareAddr(append(prefix, suffix...)), nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -1,0 +1,211 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: "${CLUSTER_NAME}"
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["${POD_NETWORK_CIDR:=192.168.0.0/16}"]
+    services:
+      cidrBlocks: ["${SERVICE_CIDR:=10.96.0.0/12}"]
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: VirtinkCluster
+    name: "${CLUSTER_NAME}"
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: "${CLUSTER_NAME}-cp"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: VirtinkCluster
+metadata:
+  name: "${CLUSTER_NAME}"
+spec:
+  controlPlaneServiceType: "${VIRTINK_CONTROL_PLANE_SERVICE_TYPE:=NodePort}"
+  infraClusterSecretRef:
+    name: "${VIRTINK_INFRA_CLUSTER_SECRET_NAME}"
+    namespace: "${VIRTINK_INFRA_CLUSTER_SECRET_NAMESPACE}"
+  nodeAddressConfig:
+    addresses: ${VIRTINK_NODE_ADDRESSES}
+    annotations: ${VIRTINK_NODE_ADDRESS_ANNOTATIONS}
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: "${CLUSTER_NAME}-cp"
+spec:
+  version: "${KUBERNETES_VERSION:=1.24.0}"
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: VirtinkMachineTemplate
+      name: "${CLUSTER_NAME}-cp"
+  kubeadmConfigSpec:
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          provider-id: "virtink://{{ ds.meta_data.instance_id }}"
+        ignorePreflightErrors:
+          - SystemVerification
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          provider-id: "virtink://{{ ds.meta_data.instance_id }}"
+        ignorePreflightErrors:
+          - SystemVerification
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: VirtinkMachineTemplate
+metadata:
+  name: "${CLUSTER_NAME}-cp"
+spec:
+  template:
+    spec:
+      vmSpec:
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchExpressions:
+                      - key: cluster.x-k8s.io/control-plane
+                        operator: Exists
+        runPolicy: Always
+        readinessProbe:
+          httpGet:
+            scheme: HTTPS
+            port: 6443
+            path: /readyz
+        instance:
+          cpu:
+            sockets: 1
+            coresPerSocket: ${VIRTINK_CONTROL_PLANE_MACHINE_CPU_CORES:=2}
+          memory:
+            size: ${VIRTINK_CONTROL_PLANE_MACHINE_MEMORY_SIZE:=4Gi}
+          kernel:
+            image: "${VIRTINK_CONTROL_PLANE_MACHINE_KERNEL_IMAGE:=smartxworks/capch-kernel-5.15.12}"
+            cmdline: "console=ttyS0 root=/dev/vda rw"
+          disks:
+            - name: rootfs
+          interfaces:
+            - name: pod
+        volumes:
+          - name: rootfs
+            dataVolume:
+              volumeName: rootfs
+        networks:
+          - name: pod
+            pod: {}
+      volumeTemplates:
+      - dataVolume:
+          metadata:
+            name: rootfs
+          spec:
+            pvc:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: ${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_SIZE:=4Gi}
+            source:
+              registry:
+                pullMethod: node
+                url: "docker://${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_CDI_IMAGE:=smartxworks/capch-rootfs-cdi-1.24.0}"
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: "${CLUSTER_NAME}-md-0"
+spec:
+  clusterName: "${CLUSTER_NAME}"
+  replicas: ${WORKER_MACHINE_COUNT}
+  selector:
+    matchLabels: {}
+  template:
+    spec:
+      clusterName: "${CLUSTER_NAME}"
+      version: "${KUBERNETES_VERSION:=1.24.0}"
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          name: "${CLUSTER_NAME}-md-0"
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: VirtinkMachineTemplate
+        name: "${CLUSTER_NAME}-md-0"
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: "${CLUSTER_NAME}-md-0"
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            provider-id: "virtink://{{ ds.meta_data.instance_id }}"
+          ignorePreflightErrors:
+            - SystemVerification
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: VirtinkMachineTemplate
+metadata:
+  name: "${CLUSTER_NAME}-md-0"
+spec:
+  template:
+    spec:
+      vmSpec:
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchExpressions:
+                      - key: cluster.x-k8s.io/deployment-name
+                        operator: In
+                        values:
+                          - "${CLUSTER_NAME}-md-0"
+        runPolicy: Once
+        instance:
+          cpu:
+            sockets: 1
+            coresPerSocket: ${VIRTINK_WORKER_MACHINE_CPU_CORES:=2}
+          memory:
+            size: ${VIRTINK_WORKER_MACHINE_MEMORY_SIZE:=4Gi}
+          kernel:
+            image: "${VIRTINK_WORKER_MACHINE_KERNEL_IMAGE:=smartxworks/capch-kernel-5.15.12}"
+            cmdline: "console=ttyS0 root=/dev/vda rw"
+          disks:
+            - name: rootfs
+          interfaces:
+            - name: pod
+        volumes:
+          - name: rootfs
+            dataVolume:
+              volumeName: rootfs
+        networks:
+          - name: pod
+            pod: {}
+      volumeTemplates:
+      - dataVolume:
+          metadata:
+            name: rootfs
+          spec:
+            pvc:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: ${VIRTINK_WORKER_MACHINE_ROOTFS_SIZE:=4Gi}
+            source:
+              registry:
+                pullMethod: node
+                url: "docker://${VIRTINK_WORKER_MACHINE_ROOTFS_CDI_IMAGE:=smartxworks/capch-rootfs-cdi-1.24.0}"
