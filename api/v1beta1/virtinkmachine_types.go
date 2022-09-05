@@ -3,6 +3,7 @@ package v1beta1
 import (
 	virtv1alpha1 "github.com/smartxworks/virtink/pkg/apis/virt/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -15,7 +16,18 @@ type VirtinkMachineSpec struct {
 
 	ProviderID *string `json:"providerID,omitempty"`
 
-	VMSpec virtv1alpha1.VirtualMachineSpec `json:"vmSpec"`
+	VMSpec          virtv1alpha1.VirtualMachineSpec `json:"vmSpec"`
+	VolumeTemplates []VolumeTemplateSource          `json:"volumeTemplates,omitempty"`
+}
+
+type VolumeTemplateSource struct {
+	DataVolume *VolumeTemplateSourceDataVolume `json:"dataVolume,omitempty"`
+}
+
+type VolumeTemplateSourceDataVolume struct {
+	// +kubebuilder:pruning:PreserveUnknownFields
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              cdiv1beta1.DataVolumeSpec `json:"spec,omitempty"`
 }
 
 // VirtinkMachineStatus defines the observed state of VirtinkMachine

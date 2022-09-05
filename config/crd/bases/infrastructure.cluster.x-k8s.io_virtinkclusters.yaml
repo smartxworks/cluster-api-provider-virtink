@@ -104,6 +104,25 @@ spec:
                     description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                     type: string
                 type: object
+              nodeAddressConfig:
+                properties:
+                  addresses:
+                    description: Addresses is list of IP addresses for allocating
+                      to nested cluster nodes.
+                    items:
+                      type: string
+                    type: array
+                  annotations:
+                    description: 'Annotations are CNI required annotations to specify
+                      static IP and MAC address for pod. can use $IP_ADDRESS as a
+                      placeholder for IP address, provider will replace it by allocated
+                      IP address. can use $MAC_ADDRESS as a placeholder for MAC address,
+                      provider will replace it by a self generated MAC address. eg:
+                      ["cni.projectcalico.org/ipAddrs=[\"$IP_ADDRESS\"]", "cni.projectcalico.org/hwAddr=$MAC_ADDRESS"]'
+                    items:
+                      type: string
+                    type: array
+                type: object
             type: object
           status:
             description: VirtinkClusterStatus defines the observed state of VirtinkCluster
