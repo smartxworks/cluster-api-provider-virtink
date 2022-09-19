@@ -55,6 +55,10 @@ spec:
           provider-id: "virtink://{{ ds.meta_data.instance_id }}"
         ignorePreflightErrors:
           - SystemVerification
+    preKubeadmCommands:
+      - "ctr -n k8s.io image import /usr/share/capch/images.tar"
+    postKubeadmCommands:
+      - "rm -rf /usr/share/capch/images.tar"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkMachineTemplate
@@ -114,7 +118,7 @@ spec:
             source:
               registry:
                 pullMethod: node
-                url: "docker://${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_CDI_IMAGE:=smartxworks/capch-rootfs-cdi-1.24.0}"
+                url: "docker://${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_CDI_IMAGE:=smartxworks/capch-rootfs-cdi-${KUBERNETES_VERSION:=1.24.0}}"
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -152,6 +156,10 @@ spec:
             provider-id: "virtink://{{ ds.meta_data.instance_id }}"
           ignorePreflightErrors:
             - SystemVerification
+      preKubeadmCommands:
+        - "ctr -n k8s.io image import /usr/share/capch/images.tar"
+      postKubeadmCommands:
+        - "rm -rf /usr/share/capch/images.tar"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkMachineTemplate
@@ -208,4 +216,4 @@ spec:
             source:
               registry:
                 pullMethod: node
-                url: "docker://${VIRTINK_WORKER_MACHINE_ROOTFS_CDI_IMAGE:=smartxworks/capch-rootfs-cdi-1.24.0}"
+                url: "docker://${VIRTINK_WORKER_MACHINE_ROOTFS_CDI_IMAGE:=smartxworks/capch-rootfs-cdi-${KUBERNETES_VERSION:=1.24.0}}"
