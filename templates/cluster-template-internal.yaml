@@ -49,6 +49,10 @@ spec:
           provider-id: "virtink://{{ ds.meta_data.instance_id }}"
         ignorePreflightErrors:
           - SystemVerification
+    preKubeadmCommands:
+      - "ctr -n k8s.io image import /usr/share/capch/images.tar"
+    postKubeadmCommands:
+      - "rm -rf /usr/share/capch/images.tar"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkMachineTemplate
@@ -90,7 +94,7 @@ spec:
         volumes:
           - name: rootfs
             containerRootfs:
-              image: "${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_IMAGE:=smartxworks/capch-rootfs-1.24.0}"
+              image: "${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_IMAGE:=smartxworks/capch-rootfs-${KUBERNETES_VERSION:=1.24.0}}"
               size: ${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_SIZE:=4Gi}
         networks:
           - name: pod
@@ -149,6 +153,10 @@ spec:
             provider-id: "virtink://{{ ds.meta_data.instance_id }}"
           ignorePreflightErrors:
             - SystemVerification
+      preKubeadmCommands:
+        - "ctr -n k8s.io image import /usr/share/capch/images.tar"
+      postKubeadmCommands:
+        - "rm -rf /usr/share/capch/images.tar"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkMachineTemplate
@@ -187,7 +195,7 @@ spec:
         volumes:
           - name: rootfs
             containerRootfs:
-              image: "${VIRTINK_WORKER_MACHINE_ROOTFS_IMAGE:=smartxworks/capch-rootfs-1.24.0}"
+              image: "${VIRTINK_WORKER_MACHINE_ROOTFS_IMAGE:=smartxworks/capch-rootfs-${KUBERNETES_VERSION:=1.24.0}}"
               size: ${VIRTINK_WORKER_MACHINE_ROOTFS_SIZE:=4Gi}
         networks:
           - name: pod

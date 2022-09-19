@@ -30,23 +30,24 @@ An external Virtink cluster is recommended for infrastructure, further details c
 
 Except for the [common variables](https://cluster-api.sigs.k8s.io/clusterctl/provider-contract.html#common-variables) provided by Cluster API, you can further customize your workload cluster on Virtink with following environment variables:
 
-| Variable name                              | Note                                                                                                                 |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| VIRTINK_INFRA_CLUSTER_SECRET_NAME          | The name of secret in the management cluster that contains the kubeconfig of the Virtink infrastructure cluster      |
-| VIRTINK_INFRA_CLUSTER_SECRET_NAMESPACE     | The namespace of secret in the management cluster that contains the kubeconfig of the Virtink infrastructure cluster |
-| POD_NETWORK_CIDR                           | Range of IP addresses for the pod network (default `192.168.0.0/16`)                                                 |
-| SERVICE_CIDR                               | Range of IP address for service VIPs (default `10.96.0.0/12`)                                                        |
-| VIRTINK_CONTROL_PLANE_SERVICE_TYPE         | The type of control plane service (default `NodePort`)                                                               |
-| VIRTINK_CONTROL_PLANE_MACHINE_CPU_CORES    | The CPU cores of each control plane machine (default `2`)                                                            |
-| VIRTINK_CONTROL_PLANE_MACHINE_MEMORY_SIZE  | The memory size of each control plane machine (default `4Gi`)                                                        |
-| VIRTINK_CONTROL_PLANE_MACHINE_KERNEL_IMAGE | The kernel image of control plane machine (default `smartxworks/capch-kernel-5.15.12`)                               |
-| VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_IMAGE | The rootfs image of control plane machine (default `smartxworks/capch-rootfs-1.24.0`)                                |
-| VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_SIZE  | The rootfs size of each control plane machine (default `4Gi`)                                                        |
-| VIRTINK_WORKER_MACHINE_CPU_CORES           | The CPU cores of each worker machine (default `2`)                                                                   |
-| VIRTINK_WORKER_MACHINE_MEMORY_SIZE         | The memory size of each worker machine (default `4Gi`)                                                               |
-| VIRTINK_WORKER_MACHINE_KERNEL_IMAGE        | The kernel image of worker machine (default `smartxworks/capch-kernel-5.15.12`)                                      |
-| VIRTINK_WORKER_MACHINE_ROOTFS_IMAGE        | The rootfs image of worker machine (default `smartxworks/capch-rootfs-1.24.0`)                                       |
-| VIRTINK_WORKER_MACHINE_ROOTFS_SIZE         | The rootfs size of each worker machine (default `4Gi`)                                                               |
+| Variable name                              | Note                                                                                                                  |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| KUBERNETES_VERSION                         | Only support Kubernetes versions that corresponding rootfs image `smartxworks/capch-rootfs-$KUBERNETES_VERSION` exists|
+| VIRTINK_INFRA_CLUSTER_SECRET_NAME          | The name of secret in the management cluster that contains the kubeconfig of the Virtink infrastructure cluster       |
+| VIRTINK_INFRA_CLUSTER_SECRET_NAMESPACE     | The namespace of secret in the management cluster that contains the kubeconfig of the Virtink infrastructure cluster  |
+| POD_NETWORK_CIDR                           | Range of IP addresses for the pod network (default `192.168.0.0/16`)                                                  |
+| SERVICE_CIDR                               | Range of IP address for service VIPs (default `10.96.0.0/12`)                                                         |
+| VIRTINK_CONTROL_PLANE_SERVICE_TYPE         | The type of control plane service (default `NodePort`)                                                                |
+| VIRTINK_CONTROL_PLANE_MACHINE_CPU_CORES    | The CPU cores of each control plane machine (default `2`)                                                             |
+| VIRTINK_CONTROL_PLANE_MACHINE_MEMORY_SIZE  | The memory size of each control plane machine (default `4Gi`)                                                         |
+| VIRTINK_CONTROL_PLANE_MACHINE_KERNEL_IMAGE | The kernel image of control plane machine (default `smartxworks/capch-kernel-5.15.12`)                                |
+| VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_IMAGE | The rootfs image of control plane machine (default `smartxworks/capch-rootfs-1.24.0`)                                 |
+| VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_SIZE  | The rootfs size of each control plane machine (default `4Gi`)                                                         |
+| VIRTINK_WORKER_MACHINE_CPU_CORES           | The CPU cores of each worker machine (default `2`)                                                                    |
+| VIRTINK_WORKER_MACHINE_MEMORY_SIZE         | The memory size of each worker machine (default `4Gi`)                                                                |
+| VIRTINK_WORKER_MACHINE_KERNEL_IMAGE        | The kernel image of worker machine (default `smartxworks/capch-kernel-5.15.12`)                                       |
+| VIRTINK_WORKER_MACHINE_ROOTFS_IMAGE        | The rootfs image of worker machine (default `smartxworks/capch-rootfs-1.24.0`)                                        |
+| VIRTINK_WORKER_MACHINE_ROOTFS_SIZE         | The rootfs size of each worker machine (default `4Gi`)                                                                |
 
 ## Launching a Kubernetes cluster on Virtink with persistent storage
 
