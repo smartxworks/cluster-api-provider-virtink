@@ -13,7 +13,7 @@ The API itself is shared across multiple cloud providers allowing for true Virti
 
 ## Launching a Kubernetes cluster on Virtink
 
-Check out the [getting started guide](https://github.com/kubernetes-sigs/cluster-api-provider-vsphere/blob/main/docs/getting_started.md) for launching a cluster on Virtink.
+Check out the [getting started guide](https://cluster-api.sigs.k8s.io/user/quick-start.html) for launching a cluster on Virtink.
 
 > **Note**: For `clusterctl` versions prior to v1.2.1, you'll need to add this provider manually to the `clusterctl` configuration file (`$HOME/.cluster-api/clusterctl.yaml`), as shown below:
 >
