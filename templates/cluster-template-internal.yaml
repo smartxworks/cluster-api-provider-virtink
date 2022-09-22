@@ -50,9 +50,9 @@ spec:
         ignorePreflightErrors:
           - SystemVerification
     preKubeadmCommands:
-      - "ctr -n k8s.io image import /usr/share/capch/images.tar"
+      - "for image in $(find /usr/share/capch/images -name '*.tar'); do ctr -n k8s.io images import $image; done"
     postKubeadmCommands:
-      - "rm -rf /usr/share/capch/images.tar"
+      - "rm -rf /usr/share/capch/images/*.tar"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkMachineTemplate
@@ -154,9 +154,9 @@ spec:
           ignorePreflightErrors:
             - SystemVerification
       preKubeadmCommands:
-        - "ctr -n k8s.io image import /usr/share/capch/images.tar"
+        - "for image in $(find /usr/share/capch/images -name '*.tar'); do ctr -n k8s.io images import $image; done"
       postKubeadmCommands:
-        - "rm -rf /usr/share/capch/images.tar"
+        - "rm -rf /usr/share/capch/images/*.tar"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VirtinkMachineTemplate
