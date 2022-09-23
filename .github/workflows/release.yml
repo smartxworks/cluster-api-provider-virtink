@@ -42,3 +42,5 @@ jobs:
             metadata.yaml
             templates/cluster-template.yaml
             templates/cluster-template-internal.yaml
+            templates/cluster-template-cdi-internal.yaml
+            templates/cluster-template-cdi.yaml
