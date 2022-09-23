@@ -162,7 +162,7 @@ $(CMCTL): $(LOCALBIN)
 
 .PHONY: e2e-image
 e2e-image:
-	docker buildx build -t docker.io/smartxworks/capch-controller:e2e .
+	docker buildx build -t docker.io/smartxworks/capch-controller:e2e --load .
 
 REPO_ROOT := $(shell pwd )
 E2E_CLUSTER_TEMPLATE_DIR ?= $(REPO_ROOT)/test/e2e/data/infrastructure-virtink
