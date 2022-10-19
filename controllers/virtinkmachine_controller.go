@@ -299,13 +299,9 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 		return nil, fmt.Errorf("generate MAC address: %s", err)
 	}
 
-	for _, anno := range cluster.Spec.NodeAddressConfig.Annotations {
-		items := strings.SplitN(anno, "=", 2)
-		if len(items) != 2 {
-			return nil, fmt.Errorf("invalid annotation template: %s", anno)
-		}
+	for name, value := range vm.Annotations {
 		replacer := strings.NewReplacer("$IP_ADDRESS", nextAddress, "$MAC_ADDRESS", macAddress.String())
-		vm.Annotations[items[0]] = replacer.Replace(items[1])
+		vm.Annotations[name] = replacer.Replace(value)
 	}
 
 	return vm, nil

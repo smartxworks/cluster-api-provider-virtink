@@ -28,7 +28,6 @@ spec:
     namespace: "${VIRTINK_INFRA_CLUSTER_SECRET_NAMESPACE}"
   nodeAddressConfig:
     addresses: ${VIRTINK_NODE_ADDRESSES}
-    annotations: ${VIRTINK_NODE_ADDRESS_ANNOTATIONS}
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
