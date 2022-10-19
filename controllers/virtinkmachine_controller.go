@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-virtink/api/v1beta1"
+	"github.com/smartxworks/cluster-api-provider-virtink/controllers/iprange"
 )
 
 // VirtinkMachineReconciler reconciles a VirtinkMachine object
@@ -276,17 +277,26 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 		return false
 	}
 
-	var nextAddress string
+	cadidateIPs := []net.IP{}
 	for _, addr := range cluster.Spec.NodeAddressConfig.Addresses {
+		ipRange, err := iprange.Parse(addr)
+		if err != nil {
+			return nil, err
+		}
+		cadidateIPs = append(cadidateIPs, ipRange.List()...)
+	}
+
+	var nextAddress string
+	for _, ip := range cadidateIPs {
 		var used bool
 		for _, virtinkMachine := range machineList.Items {
-			if isAddressUsedByMachine(&virtinkMachine, addr) {
+			if isAddressUsedByMachine(&virtinkMachine, ip.String()) {
 				used = true
 				break
 			}
 		}
 		if !used {
-			nextAddress = addr
+			nextAddress = ip.String()
 			break
 		}
 	}

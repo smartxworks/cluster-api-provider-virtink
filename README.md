@@ -57,7 +57,7 @@ By default cluster-api-provider-virtink created Kubernetes Node is a Virtink Vir
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_CDI_IMAGE | The rootfs image for CDI of control plane machine (default `smartxworks/capch-rootfs-cdi-1.24.0`)                    |
 | VIRTINK_WORKER_MACHINE_ROOTFS_CDI_IMAGE        | The rootfs image for CDI of worker machine (default `smartxworks/capch-rootfs-cdi-1.24.0`)                           |
-| VIRTINK_NODE_ADDRESSES                         | The IP addresses for nodes, if provided a node will use one of the IP address in this list during whole life cycle   |
+| VIRTINK_NODE_ADDRESSES                         | The IP addresses for nodes, if provided a node will use one of the IP address in this list during whole life cycle, support IP address ("192.168.100.1"), IP range ("192.168.100.1-192.168.100.10") or CIDR ("192.168.100.1/24") form.                                                                                   |
 
 This is an example to generate workload cluster configuration with persistent storage for an internal Virtink cluster that use Calico as CNI. You should be familiar with Calico [IP reservation](https://projectcalico.docs.tigera.io/reference/resources/ipreservation), Calico [use-specific-ip](https://projectcalico.docs.tigera.io/networking/use-specific-ip) for pod, and Calico [use-specific-mac-address](https://github.com/projectcalico/calico/blob/master/calico/networking/pod-mac-address.md) for pod.
 

@@ -28,7 +28,8 @@ type VirtinkClusterSpec struct {
 }
 
 type NodeAddressConfig struct {
-	// Addresses are list of IP addresses for allocating to nested cluster nodes.
+	// Addresses are list of IP addresses for allocating to nested cluster nodes,
+	// support IP address ("192.168.100.1"), IP range ("192.168.100.1-192.168.100.10") or CIDR ("192.168.100.1/24") form.
 	Addresses []string `json:"addresses,omitempty"`
 }
 

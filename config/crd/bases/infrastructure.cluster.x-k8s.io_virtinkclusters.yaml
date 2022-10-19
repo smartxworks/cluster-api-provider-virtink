@@ -108,7 +108,9 @@ spec:
                 properties:
                   addresses:
                     description: Addresses are list of IP addresses for allocating
-                      to nested cluster nodes.
+                      to nested cluster nodes, support IP address ("192.168.100.1"),
+                      IP range ("192.168.100.1-192.168.100.10") or CIDR ("192.168.100.1/24")
+                      form.
                     items:
                       type: string
                     type: array
