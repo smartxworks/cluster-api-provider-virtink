@@ -119,6 +119,17 @@ spec:
           status:
             description: VirtinkClusterStatus defines the observed state of VirtinkCluster
             properties:
+              nodeAddresses:
+                items:
+                  properties:
+                    ip:
+                      type: string
+                    mac:
+                      type: string
+                    name:
+                      type: string
+                  type: object
+                type: array
               ready:
                 type: boolean
             type: object

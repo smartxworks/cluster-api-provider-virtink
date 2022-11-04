@@ -2,10 +2,8 @@ package controllers
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"net"
 	"strings"
 
 	virtv1alpha1 "github.com/smartxworks/virtink/pkg/apis/virt/v1alpha1"
@@ -24,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-virtink/api/v1beta1"
-	"github.com/smartxworks/cluster-api-provider-virtink/controllers/iprange"
 )
 
 // VirtinkMachineReconciler reconciles a VirtinkMachine object
@@ -78,6 +75,7 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 	infraClusterClient := r.Client
 	var ownerMachine *capiv1beta1.Machine
 	var ownerCluster *capiv1beta1.Cluster
+	var cluster infrastructurev1beta1.VirtinkCluster
 	if controllerutil.ContainsFinalizer(machine, finalizer) {
 		m, err := capiutil.GetOwnerMachine(ctx, r.Client, machine.ObjectMeta)
 		if err != nil {
@@ -97,7 +95,6 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 		}
 		ownerCluster = c
 
-		var cluster infrastructurev1beta1.VirtinkCluster
 		clusterKey := types.NamespacedName{
 			Name:      ownerCluster.Spec.InfrastructureRef.Name,
 			Namespace: ownerCluster.Spec.InfrastructureRef.Namespace,
@@ -154,6 +151,10 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 			return fmt.Errorf("bootstrap data is nil")
 		}
 
+		if !isMachineAddressReady(&cluster, machine) {
+			return fmt.Errorf("machine address is not ready")
+		}
+
 		dataVolumes := r.buildDataVolumes(ctx, machine)
 		for _, dataVolume := range dataVolumes {
 			dataVolumeKey := types.NamespacedName{
@@ -192,7 +193,7 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 
 		vmUID := vm.UID
 		if vmNotFound {
-			vm, err := r.buildVM(ctx, machine, ownerMachine)
+			vm, err := r.buildVM(ctx, &cluster, machine, ownerMachine)
 			if err != nil {
 				return fmt.Errorf("build VM: %s", err)
 			}
@@ -214,13 +215,51 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 	return nil
 }
 
-func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine, ownerMachine *capiv1beta1.Machine) (*virtv1alpha1.VirtualMachine, error) {
+func isMachineAddressReady(cluster *infrastructurev1beta1.VirtinkCluster, machine *infrastructurev1beta1.VirtinkMachine) bool {
+	if !isMachineNeedPersistentAddress(machine) {
+		return true
+	}
+
+	for _, nodeAddress := range cluster.Status.NodeAddresses {
+		if nodeAddress.Name == machine.Name {
+			return true
+		}
+	}
+	return false
+}
+
+func isMachineNeedPersistentAddress(machine *infrastructurev1beta1.VirtinkMachine) bool {
+	for _, value := range machine.Annotations {
+		if strings.Contains(value, "$IP_ADDRESS") {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, cluster *infrastructurev1beta1.VirtinkCluster, machine *infrastructurev1beta1.VirtinkMachine, ownerMachine *capiv1beta1.Machine) (*virtv1alpha1.VirtualMachine, error) {
 	vm := &virtv1alpha1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      machine.Labels,
-			Annotations: machine.Annotations,
+			Annotations: map[string]string{},
 		},
 		Spec: machine.Spec.VMSpec,
+	}
+
+	for name, value := range machine.Labels {
+		vm.Labels[name] = value
+	}
+
+	var ip, mac string
+	for _, nodeAddress := range cluster.Status.NodeAddresses {
+		if nodeAddress.Name == machine.Name {
+			ip = nodeAddress.IP
+			mac = nodeAddress.MAC
+		}
+	}
+	replacer := strings.NewReplacer("$IP_ADDRESS", ip, "$MAC_ADDRESS", mac)
+	for name, value := range machine.Annotations {
+		vm.Annotations[name] = replacer.Replace(value)
 	}
 
 	for i := range vm.Spec.Volumes {
@@ -250,70 +289,6 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 		},
 	})
 
-	var cluster infrastructurev1beta1.VirtinkCluster
-	clusterKey := types.NamespacedName{
-		Namespace: machine.Namespace,
-		Name:      ownerMachine.Spec.ClusterName,
-	}
-	if err := r.Client.Get(ctx, clusterKey, &cluster); err != nil {
-		return nil, err
-	}
-
-	if cluster.Spec.NodeAddressConfig == nil {
-		return vm, nil
-	}
-
-	var machineList infrastructurev1beta1.VirtinkMachineList
-	if err := r.Client.List(ctx, &machineList, client.InNamespace(machine.Namespace), client.MatchingLabels{"cluster.x-k8s.io/cluster-name": cluster.Name}); err != nil {
-		return nil, err
-	}
-
-	var isAddressUsedByMachine = func(m *infrastructurev1beta1.VirtinkMachine, addr string) bool {
-		for _, value := range m.Annotations {
-			if strings.Contains(value, addr) {
-				return true
-			}
-		}
-		return false
-	}
-
-	cadidateIPs := []net.IP{}
-	for _, addr := range cluster.Spec.NodeAddressConfig.Addresses {
-		ipRange, err := iprange.Parse(addr)
-		if err != nil {
-			return nil, err
-		}
-		cadidateIPs = append(cadidateIPs, ipRange.List()...)
-	}
-
-	var nextAddress string
-	for _, ip := range cadidateIPs {
-		var used bool
-		for _, virtinkMachine := range machineList.Items {
-			if isAddressUsedByMachine(&virtinkMachine, ip.String()) {
-				used = true
-				break
-			}
-		}
-		if !used {
-			nextAddress = ip.String()
-			break
-		}
-	}
-	if nextAddress == "" {
-		return nil, fmt.Errorf("no more available IP for %q", machine.Name)
-	}
-
-	macAddress, err := generateMAC()
-	if err != nil {
-		return nil, fmt.Errorf("generate MAC address: %s", err)
-	}
-
-	for name, value := range vm.Annotations {
-		replacer := strings.NewReplacer("$IP_ADDRESS", nextAddress, "$MAC_ADDRESS", macAddress.String())
-		vm.Annotations[name] = replacer.Replace(value)
-	}
-
 	return vm, nil
 }
 
@@ -333,15 +308,6 @@ func (r *VirtinkMachineReconciler) buildDataVolumes(ctx context.Context, machine
 		}
 	}
 	return dataVolumes
-}
-
-func generateMAC() (net.HardwareAddr, error) {
-	prefix := []byte{0x52, 0x54, 0x00}
-	suffix := make([]byte, 3)
-	if _, err := rand.Read(suffix); err != nil {
-		return nil, fmt.Errorf("rand: %s", err)
-	}
-	return net.HardwareAddr(append(prefix, suffix...)), nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

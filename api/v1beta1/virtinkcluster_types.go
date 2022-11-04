@@ -38,7 +38,14 @@ type VirtinkClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Ready bool `json:"ready,omitempty"`
+	Ready         bool                `json:"ready,omitempty"`
+	NodeAddresses []NodeAddressStatus `json:"nodeAddresses,omitempty"`
+}
+
+type NodeAddressStatus struct {
+	Name string `json:"name,omitempty"`
+	IP   string `json:"ip,omitempty"`
+	MAC  string `json:"mac,omitempty"`
 }
 
 //+kubebuilder:object:root=true

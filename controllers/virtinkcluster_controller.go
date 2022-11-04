@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
+	"net"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,8 +20,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-virtink/api/v1beta1"
+	"github.com/smartxworks/cluster-api-provider-virtink/controllers/iprange"
 )
 
 const finalizer = "capch.cluster.x-k8s.io"
@@ -167,6 +173,12 @@ func (r *VirtinkClusterReconciler) reconcile(ctx context.Context, cluster *infra
 		cluster.Status.Ready = true
 	}
 
+	if cluster.Status.Ready {
+		if err := r.allocateIPAndMACForMachines(ctx, cluster); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -216,9 +228,129 @@ func (r *VirtinkClusterReconciler) buildControlPlaneService(ctx context.Context,
 	return service, nil
 }
 
+func (r *VirtinkClusterReconciler) allocateIPAndMACForMachines(ctx context.Context, cluster *infrastructurev1beta1.VirtinkCluster) error {
+	cadidateIPs := []net.IP{}
+	if cluster.Spec.NodeAddressConfig != nil {
+		for _, addr := range cluster.Spec.NodeAddressConfig.Addresses {
+			ipRange, err := iprange.Parse(addr)
+			if err != nil {
+				return err
+			}
+			cadidateIPs = append(cadidateIPs, ipRange.List()...)
+		}
+	}
+
+	var machineList infrastructurev1beta1.VirtinkMachineList
+	if err := r.List(ctx, &machineList, client.InNamespace(cluster.Namespace), client.MatchingLabels{capiv1beta1.ClusterLabelName: cluster.Name}); err != nil {
+		return err
+	}
+
+	newNodeAddresses := []infrastructurev1beta1.NodeAddressStatus{}
+	for _, nodeAddress := range cluster.Status.NodeAddresses {
+		var found bool
+		for _, machine := range machineList.Items {
+			if machine.Name == nodeAddress.Name {
+				found = true
+				break
+			}
+		}
+		if found {
+			newNodeAddresses = append(newNodeAddresses, nodeAddress)
+		}
+	}
+
+	for _, machine := range machineList.Items {
+		if !isMachineNeedPersistentAddress(&machine) {
+			continue
+		}
+
+		var allocated bool
+		for _, nodeAddress := range newNodeAddresses {
+			if nodeAddress.Name == machine.Name {
+				allocated = true
+				break
+			}
+		}
+		if allocated {
+			continue
+		}
+
+		var nextIP string
+		for _, ip := range cadidateIPs {
+			var used bool
+			for _, nodeAddress := range newNodeAddresses {
+				if nodeAddress.IP == ip.String() {
+					used = true
+					break
+				}
+			}
+			if !used {
+				nextIP = ip.String()
+				break
+			}
+		}
+		if nextIP == "" {
+			return errors.New("no more available IP Address")
+		}
+
+		mac, err := generateMAC()
+		if err != nil {
+			return fmt.Errorf("generate MAC address: %s", err)
+		}
+
+		newNodeAddresses = append(newNodeAddresses, infrastructurev1beta1.NodeAddressStatus{
+			Name: machine.Name,
+			IP:   nextIP,
+			MAC:  mac.String(),
+		})
+	}
+	cluster.Status.NodeAddresses = newNodeAddresses
+	return nil
+}
+
+func generateMAC() (net.HardwareAddr, error) {
+	prefix := []byte{0x52, 0x54, 0x00}
+	suffix := make([]byte, 3)
+	if _, err := rand.Read(suffix); err != nil {
+		return nil, fmt.Errorf("rand: %s", err)
+	}
+	return net.HardwareAddr(append(prefix, suffix...)), nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *VirtinkClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrastructurev1beta1.VirtinkCluster{}).
+		Watches(&source.Kind{Type: &infrastructurev1beta1.VirtinkMachine{}},
+			handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
+				machine, ok := obj.(*infrastructurev1beta1.VirtinkMachine)
+				if !ok {
+					return nil
+				}
+
+				clusterName := machine.Labels[capiv1beta1.ClusterLabelName]
+				if clusterName == "" {
+					return nil
+				}
+
+				var cluster capiv1beta1.Cluster
+				clusterKey := types.NamespacedName{
+					Namespace: machine.Namespace,
+					Name:      clusterName,
+				}
+				if err := r.Client.Get(context.Background(), clusterKey, &cluster); err != nil {
+					return nil
+				}
+
+				if cluster.Spec.InfrastructureRef == nil {
+					return nil
+				}
+				return []reconcile.Request{{
+					NamespacedName: types.NamespacedName{
+						Namespace: machine.Namespace,
+						Name:      cluster.Spec.InfrastructureRef.Name,
+					},
+				}}
+			})).
 		Complete(r)
 }
