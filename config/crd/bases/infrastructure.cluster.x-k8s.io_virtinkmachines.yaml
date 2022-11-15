@@ -2006,6 +2006,12 @@ spec:
           status:
             description: VirtinkMachineStatus defines the observed state of VirtinkMachine
             properties:
+              failureMessage:
+                type: string
+              failureReason:
+                description: MachineStatusError defines errors states for Machine
+                  objects.
+                type: string
               ready:
                 type: boolean
             type: object

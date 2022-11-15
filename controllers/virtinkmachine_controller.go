@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	virtv1alpha1 "github.com/smartxworks/virtink/pkg/apis/virt/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	capierrors "sigs.k8s.io/cluster-api/errors"
 	capiutil "sigs.k8s.io/cluster-api/util"
 	capipatch "sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -65,16 +68,21 @@ func (r *VirtinkMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if err := r.reconcile(ctx, &machine); err != nil {
+		rerr := reconcileError{}
+		if errors.As(err, &rerr) {
+			return rerr.Result, nil
+		}
 		return ctrl.Result{}, err
 	}
 
 	if err := patchHelper.Patch(ctx, &machine); err != nil {
 		return ctrl.Result{}, fmt.Errorf("patch Machine: %s", err)
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 }
 
 func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine) error {
+	log := ctrl.LoggerFrom(ctx)
 	infraClusterClient := r.Client
 	var ownerMachine *capiv1beta1.Machine
 	var ownerCluster *capiv1beta1.Cluster
@@ -84,7 +92,8 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 			return fmt.Errorf("get owner Machine: %s", err)
 		}
 		if m == nil {
-			return fmt.Errorf("owner Machine is nil")
+			log.Info("owner Machine is nil")
+			return nil
 		}
 		ownerMachine = m
 
@@ -93,7 +102,8 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 			return fmt.Errorf("get owner Cluster: %s", err)
 		}
 		if c == nil {
-			return fmt.Errorf("owner Cluster is nil")
+			log.Info("owner Cluster is nil")
+			return nil
 		}
 		ownerCluster = c
 
@@ -147,11 +157,13 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 		}
 
 		if !ownerCluster.Status.InfrastructureReady {
-			return fmt.Errorf("owner Cluster is not ready")
+			log.Info("owner Cluster is not ready")
+			return reconcileError{Result: ctrl.Result{RequeueAfter: 3 * time.Second}}
 		}
 
 		if ownerMachine.Spec.Bootstrap.DataSecretName == nil {
-			return fmt.Errorf("bootstrap data is nil")
+			log.Info("bootstrap data is nil")
+			return reconcileError{Result: ctrl.Result{RequeueAfter: 3 * time.Second}}
 		}
 
 		dataVolumes := r.buildDataVolumes(ctx, machine)
@@ -190,7 +202,6 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 			}
 		}
 
-		vmUID := vm.UID
 		if vmNotFound {
 			vm, err := r.buildVM(ctx, machine, ownerMachine)
 			if err != nil {
@@ -203,12 +214,30 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 				return fmt.Errorf("create VM: %s", err)
 			}
 			r.Recorder.Eventf(machine, corev1.EventTypeNormal, "CreatedVM", "Created VM %q", vm.Name)
-			vmUID = vm.UID
+			return reconcileError{Result: ctrl.Result{RequeueAfter: 10 * time.Second}}
 		}
 
-		providerID := fmt.Sprintf("virtink://%s", vmUID)
+		providerID := fmt.Sprintf("virtink://%s", vm.UID)
 		machine.Spec.ProviderID = &providerID
-		machine.Status.Ready = true
+		machine.Status.Ready = false
+
+		failureReason := capierrors.UpdateMachineError
+		switch vm.Status.Phase {
+		case virtv1alpha1.VirtualMachinePending, virtv1alpha1.VirtualMachineScheduling, virtv1alpha1.VirtualMachineScheduled:
+			return reconcileError{Result: ctrl.Result{RequeueAfter: 10 * time.Second}}
+		case virtv1alpha1.VirtualMachineRunning:
+			machine.Status.Ready = true
+		case virtv1alpha1.VirtualMachineFailed:
+			if vm.Spec.RunPolicy == virtv1alpha1.RunPolicyHalted || vm.Spec.RunPolicy == virtv1alpha1.RunPolicyOnce {
+				machine.Status.FailureReason = &failureReason
+				machine.Status.FailureMessage = &[]string{"VM has reached final state"}[0]
+			}
+		case virtv1alpha1.VirtualMachineSucceeded:
+			if vm.Spec.RunPolicy == virtv1alpha1.RunPolicyHalted || vm.Spec.RunPolicy == virtv1alpha1.RunPolicyOnce || vm.Spec.RunPolicy == virtv1alpha1.RunPolicyRerunOnFailure {
+				machine.Status.FailureReason = &failureReason
+				machine.Status.FailureMessage = &[]string{"VM has reached final state"}[0]
+			}
+		}
 	}
 
 	return nil

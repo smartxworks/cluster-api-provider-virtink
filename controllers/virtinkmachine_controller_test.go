@@ -157,7 +157,7 @@ var _ = Describe("VirtinkMachine controller", func() {
 					var vm virtv1alpha1.VirtualMachine
 					Eventually(func() error {
 						return k8sClient.Get(ctx, virtinkMachineKey, &vm)
-					}).Should(Succeed())
+					}, "10s").Should(Succeed())
 					Expect(vm.Spec.Volumes[0].CloudInit.UserDataBase64).To(Equal(base64.StdEncoding.EncodeToString([]byte("#cloud-init"))))
 
 					var virtinkMachine infrastructurev1beta1.VirtinkMachine
@@ -173,7 +173,7 @@ var _ = Describe("VirtinkMachine controller", func() {
 						var vm virtv1alpha1.VirtualMachine
 						Eventually(func() error {
 							return k8sClient.Get(ctx, virtinkMachineKey, &vm)
-						}).Should(Succeed())
+						}, "10s").Should(Succeed())
 
 						virtinkMachine := infrastructurev1beta1.VirtinkMachine{
 							ObjectMeta: metav1.ObjectMeta{
