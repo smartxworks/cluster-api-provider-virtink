@@ -4,6 +4,7 @@ import (
 	virtv1alpha1 "github.com/smartxworks/virtink/pkg/apis/virt/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
+	capierrors "sigs.k8s.io/cluster-api/errors"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -35,7 +36,9 @@ type VirtinkMachineStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Ready bool `json:"ready,omitempty"`
+	Ready          bool                           `json:"ready,omitempty"`
+	FailureReason  *capierrors.MachineStatusError `json:"failureReason,omitempty"`
+	FailureMessage *string                        `json:"failureMessage,omitempty"`
 }
 
 //+kubebuilder:object:root=true

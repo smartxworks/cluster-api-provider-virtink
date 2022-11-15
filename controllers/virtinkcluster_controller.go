@@ -118,7 +118,7 @@ func (r *VirtinkClusterReconciler) reconcile(ctx context.Context, cluster *infra
 			return fmt.Errorf("get owner Cluster: %s", err)
 		}
 		if ownerCluster == nil {
-			return fmt.Errorf("owner Cluster is nil")
+			return nil
 		}
 
 		var controlPlaneService corev1.Service
