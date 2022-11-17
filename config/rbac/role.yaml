@@ -134,6 +134,34 @@ rules:
   - patch
   - update
 - apiGroups:
+  - ipam.metal3.io
+  resources:
+  - ipaddresses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ipam.metal3.io
+  resources:
+  - ipclaims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.metal3.io
+  resources:
+  - ipclaims/status
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - virt.virtink.smartx.com
   resources:
   - virtualmachines

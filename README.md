@@ -57,7 +57,7 @@ By default cluster-api-provider-virtink created Kubernetes Node is a Virtink Vir
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_CDI_IMAGE | The rootfs image for CDI of control plane machine (default `smartxworks/capch-rootfs-cdi-1.24.0`)                    |
 | VIRTINK_WORKER_MACHINE_ROOTFS_CDI_IMAGE        | The rootfs image for CDI of worker machine (default `smartxworks/capch-rootfs-cdi-1.24.0`)                           |
-| VIRTINK_NODE_ADDRESSES                         | The IP addresses for nodes, if provided a node will use one of the IP address in this list during whole life cycle, support IP address ("192.168.100.1"), IP range ("192.168.100.1-192.168.100.10") or CIDR ("192.168.100.1/24") form.                                                                                   |
+| VIRTINK_IP_POOL_NAME                           | The IPPool for machines to get IP address from                                                                       |
 
 This is an example to generate workload cluster configuration with persistent storage for an internal Virtink cluster that use Calico as CNI. You should be familiar with Calico [IP reservation](https://projectcalico.docs.tigera.io/reference/resources/ipreservation), Calico [use-specific-ip](https://projectcalico.docs.tigera.io/networking/use-specific-ip) for pod, and Calico [use-specific-mac-address](https://github.com/projectcalico/calico/blob/master/calico/networking/pod-mac-address.md) for pod.
 
@@ -72,10 +72,12 @@ spec:
         cni.projectcalico.org/ipAddrs: '["$IP_ADDRESS"]'
 ```
 
+We use [ip-address-manager](https://github.com/metal3-io/ip-address-manager) to manage the allocattion of IP addresses, so you need to create an [IPPool](https://github.com/metal3-io/ip-address-manager/blob/main/docs/api.md#ippool) resource.
+
 ```shell
-# replace to reserved IP addresses
-export VIRTINK_NODE_ADDRESSES='["172.22.161.241", "172.22.161.242"]'
-clusterctl generate cluster --from cluster-template-cdi-internal.yaml capi-quickstart
+# replace to created IPPool name.
+export VIRTINK_IP_POOL_NAME='capi-quickstart'
+clusterctl generate cluster --infrastructure virtink --flavor cdi-internal capi-quickstart
 ```
 
 ## License

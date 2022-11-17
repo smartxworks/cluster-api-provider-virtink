@@ -23,8 +23,6 @@ metadata:
   name: "${CLUSTER_NAME}"
 spec:
   controlPlaneServiceType: "${VIRTINK_CONTROL_PLANE_SERVICE_TYPE:=NodePort}"
-  nodeAddressConfig:
-    addresses: ${VIRTINK_NODE_ADDRESSES}
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
@@ -63,6 +61,10 @@ metadata:
 spec:
   template:
     spec:
+      ipPoolRef:
+        apiGroup: ipam.metal3.io
+        kind: IPPool
+        name: "${VIRTINK_IP_POOL_NAME}"
       vmSpec:
         affinity:
           podAntiAffinity:
@@ -164,6 +166,10 @@ metadata:
 spec:
   template:
     spec:
+      ipPoolRef:
+        apiGroup: ipam.metal3.io
+        kind: IPPool
+        name: "${VIRTINK_IP_POOL_NAME}"
       vmSpec:
         affinity:
           podAntiAffinity:
@@ -177,7 +183,7 @@ spec:
                         operator: In
                         values:
                           - "${CLUSTER_NAME}-md-0"
-        runPolicy: Once
+        runPolicy: Always
         instance:
           cpu:
             sockets: 1

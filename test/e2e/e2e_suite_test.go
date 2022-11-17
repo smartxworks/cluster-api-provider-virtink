@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/cmd/clusterctl/client/config"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/bootstrap"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -179,7 +181,7 @@ func setupBootstrapCluster(config *clusterctl.E2EConfig, scheme *runtime.Scheme)
 }
 
 func initBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *clusterctl.E2EConfig, clusterctlConfig, artifactFolder string) {
-	clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
+	initManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:            bootstrapClusterProxy,
 		ClusterctlConfigPath:    clusterctlConfig,
 		InfrastructureProviders: config.InfrastructureProviders(),
@@ -220,6 +222,83 @@ func dumpBootstrapClusterLogs(bootstrapClusterProxy framework.ClusterProxy) {
 		)
 		if err != nil {
 			fmt.Printf("Failed to get logs for the bootstrap cluster node %s: %v\n", nodeName, err)
+		}
+	}
+}
+
+// initManagementClusterAndWatchControllerLogs is from https://github.com/kubernetes-sigs/cluster-api/blob/v1.2.0/test/framework/clusterctl/clusterctl_helpers.go#L51
+// with some update to be compatible with ip-addresss-manager
+func initManagementClusterAndWatchControllerLogs(ctx context.Context, input clusterctl.InitManagementClusterAndWatchControllerLogsInput, intervals ...interface{}) {
+	Expect(ctx).NotTo(BeNil(), "ctx is required for InitManagementClusterAndWatchControllerLogs")
+	Expect(input.ClusterProxy).ToNot(BeNil(), "Invalid argument. input.ClusterProxy can't be nil when calling InitManagementClusterAndWatchControllerLogs")
+	Expect(input.ClusterctlConfigPath).To(BeAnExistingFile(), "Invalid argument. input.ClusterctlConfigPath must be an existing file when calling InitManagementClusterAndWatchControllerLogs")
+	Expect(input.InfrastructureProviders).ToNot(BeEmpty(), "Invalid argument. input.InfrastructureProviders can't be empty when calling InitManagementClusterAndWatchControllerLogs")
+	Expect(os.MkdirAll(input.LogFolder, 0750)).To(Succeed(), "Invalid argument. input.LogFolder can't be created for InitManagementClusterAndWatchControllerLogs")
+
+	if input.CoreProvider == "" {
+		input.CoreProvider = config.ClusterAPIProviderName
+	}
+	if len(input.BootstrapProviders) == 0 {
+		input.BootstrapProviders = []string{config.KubeadmBootstrapProviderName}
+	}
+	if len(input.ControlPlaneProviders) == 0 {
+		input.ControlPlaneProviders = []string{config.KubeadmControlPlaneProviderName}
+	}
+
+	client := input.ClusterProxy.GetClient()
+	controllersDeployments := framework.GetControllerDeployments(ctx, framework.GetControllerDeploymentsInput{
+		Lister: client,
+		// exclude capm3-system, otherwide `clusterctl init` would not install providers.
+		ExcludeNamespaces: []string{"capm3-system"},
+	})
+	if len(controllersDeployments) == 0 {
+		initInput := clusterctl.InitInput{
+			// pass reference to the management cluster hosting this test
+			KubeconfigPath: input.ClusterProxy.GetKubeconfigPath(),
+			// pass the clusterctl config file that points to the local provider repository created for this test
+			ClusterctlConfigPath: input.ClusterctlConfigPath,
+			// setup the desired list of providers for a single-tenant management cluster
+			CoreProvider:            input.CoreProvider,
+			BootstrapProviders:      input.BootstrapProviders,
+			ControlPlaneProviders:   input.ControlPlaneProviders,
+			InfrastructureProviders: input.InfrastructureProviders,
+			// setup clusterctl logs folder
+			LogFolder: input.LogFolder,
+		}
+
+		if input.ClusterctlBinaryPath != "" {
+			clusterctl.InitWithBinary(ctx, input.ClusterctlBinaryPath, initInput)
+		} else {
+			clusterctl.Init(ctx, initInput)
+		}
+	}
+
+	//log.Logf("Waiting for provider controllers to be running")
+	controllersDeployments = framework.GetControllerDeployments(ctx, framework.GetControllerDeploymentsInput{
+		Lister: client,
+	})
+	Expect(controllersDeployments).ToNot(BeEmpty(), "The list of controller deployments should not be empty")
+	for _, deployment := range controllersDeployments {
+		framework.WaitForDeploymentsAvailable(ctx, framework.WaitForDeploymentsAvailableInput{
+			Getter:     client,
+			Deployment: deployment,
+		}, intervals...)
+
+		// Start streaming logs from all controller providers
+		framework.WatchDeploymentLogs(ctx, framework.WatchDeploymentLogsInput{
+			GetLister:  client,
+			ClientSet:  input.ClusterProxy.GetClientSet(),
+			Deployment: deployment,
+			LogPath:    filepath.Join(input.LogFolder, "controllers"),
+		})
+
+		if !input.DisableMetricsCollection {
+			framework.WatchPodMetrics(ctx, framework.WatchPodMetricsInput{
+				GetLister:   client,
+				ClientSet:   input.ClusterProxy.GetClientSet(),
+				Deployment:  deployment,
+				MetricsPath: filepath.Join(input.LogFolder, "controllers"),
+			})
 		}
 	}
 }

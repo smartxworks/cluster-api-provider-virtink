@@ -104,17 +104,6 @@ spec:
                     description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                     type: string
                 type: object
-              nodeAddressConfig:
-                properties:
-                  addresses:
-                    description: Addresses are list of IP addresses for allocating
-                      to nested cluster nodes, support IP address ("192.168.100.1"),
-                      IP range ("192.168.100.1-192.168.100.10") or CIDR ("192.168.100.1/24")
-                      form.
-                    items:
-                      type: string
-                    type: array
-                type: object
             type: object
           status:
             description: VirtinkClusterStatus defines the observed state of VirtinkCluster

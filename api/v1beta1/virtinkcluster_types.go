@@ -24,13 +24,6 @@ type VirtinkClusterSpec struct {
 
 	// InfraClusterSecretRef is a reference to a secret with a kubeconfig for external cluster used for infra.
 	InfraClusterSecretRef *corev1.ObjectReference `json:"infraClusterSecretRef,omitempty"`
-	NodeAddressConfig     *NodeAddressConfig      `json:"nodeAddressConfig,omitempty"`
-}
-
-type NodeAddressConfig struct {
-	// Addresses are list of IP addresses for allocating to nested cluster nodes,
-	// support IP address ("192.168.100.1"), IP range ("192.168.100.1-192.168.100.10") or CIDR ("192.168.100.1/24") form.
-	Addresses []string `json:"addresses,omitempty"`
 }
 
 // VirtinkClusterStatus defines the observed state of VirtinkCluster

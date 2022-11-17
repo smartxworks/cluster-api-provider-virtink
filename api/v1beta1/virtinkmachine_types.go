@@ -2,6 +2,7 @@ package v1beta1
 
 import (
 	virtv1alpha1 "github.com/smartxworks/virtink/pkg/apis/virt/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	capierrors "sigs.k8s.io/cluster-api/errors"
@@ -17,8 +18,9 @@ type VirtinkMachineSpec struct {
 
 	ProviderID *string `json:"providerID,omitempty"`
 
-	VMSpec          virtv1alpha1.VirtualMachineSpec `json:"vmSpec"`
-	VolumeTemplates []VolumeTemplateSource          `json:"volumeTemplates,omitempty"`
+	VMSpec          virtv1alpha1.VirtualMachineSpec   `json:"vmSpec"`
+	VolumeTemplates []VolumeTemplateSource            `json:"volumeTemplates,omitempty"`
+	IPPoolRef       *corev1.TypedLocalObjectReference `json:"ipPoolRef,omitempty"`
 }
 
 type VolumeTemplateSource struct {
