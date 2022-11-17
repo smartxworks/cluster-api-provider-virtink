@@ -174,7 +174,8 @@ e2e-cluster-templates-v1alpha1: $(KUSTOMIZE) ## Generate cluster templates for v
 SKIP_RESOURCE_CLEANUP ?= false
 CERT_MANAGER_MANIFEST ?= https://github.com/cert-manager/cert-manager/releases/download/v1.8.2/cert-manager.yaml
 VIRTINK_MANIFEST ?= https://github.com/smartxworks/virtink/releases/download/v0.8.0/virtink.yaml
-E2E_KIND_CLUSTER_NAME ?= capch-e2e-$(shell date "+%Y-%m-%d-%H-%M-%S")
+IP_ADDRESS_MANAGER_MANIFEST ?= https://github.com/metal3-io/ip-address-manager/releases/download/v1.2.1/ipam-components.yaml
+E2E_KIND_CLUSTER_NAME := capch-e2e-$(shell date "+%Y-%m-%d-%H-%M-%S")
 E2E_KIND_CLUSTER_KUBECONFIG := /tmp/$(E2E_KIND_CLUSTER_NAME).kubeconfig
 
 .PHONY: e2e
@@ -189,6 +190,9 @@ e2e: kind e2e-image kubectl cmctl kustomize ginkgo e2e-cluster-templates-v1alpha
 	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(CMCTL) check api --wait=10m
 	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) apply -f $(VIRTINK_MANIFEST)
 	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) wait -n virtink-system deployment virt-controller --for condition=Available --timeout -1s
+	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) create namespace capm3-system
+	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) apply -f $(IP_ADDRESS_MANAGER_MANIFEST)
+	KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(KUBECTL) wait -n capm3-system deployment ipam-controller-manager --for condition=Available --timeout -1s
 
 	PATH=$(LOCALBIN):$(PATH) KUBECONFIG=$(E2E_KIND_CLUSTER_KUBECONFIG) $(GINKGO) -v -trace -tags=e2e ./test/e2e -- \
 		-e2e.artifacts-folder="$(REPO_ROOT)/_artifacts" \

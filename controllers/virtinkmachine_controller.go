@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	ipamv1 "github.com/metal3-io/ip-address-manager/api/v1alpha1"
 	virtv1alpha1 "github.com/smartxworks/virtink/pkg/apis/virt/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-virtink/api/v1beta1"
-	"github.com/smartxworks/cluster-api-provider-virtink/controllers/iprange"
 )
 
 // VirtinkMachineReconciler reconciles a VirtinkMachine object
@@ -47,6 +47,9 @@ type VirtinkMachineReconciler struct {
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;update;patch;delete;
 //+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch
+//+kubebuilder:rbac:groups=ipam.metal3.io,resources=ipclaims,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=ipam.metal3.io,resources=ipclaims/status,verbs=get;list;watch
+//+kubebuilder:rbac:groups=ipam.metal3.io,resources=ipaddresses,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -57,7 +60,7 @@ type VirtinkMachineReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
-func (r *VirtinkMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *VirtinkMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, rerr error) {
 	var machine infrastructurev1beta1.VirtinkMachine
 	if err := r.Get(ctx, req.NamespacedName, &machine); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -68,18 +71,23 @@ func (r *VirtinkMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("create Machine patch helper: %s", err)
 	}
 
+	defer func() {
+		if err := patchHelper.Patch(ctx, &machine); err != nil {
+			if rerr == nil {
+				rerr = fmt.Errorf("patch Machine: %s", err)
+			}
+		}
+	}()
+
 	if err := r.reconcile(ctx, &machine); err != nil {
-		rerr := reconcileError{}
-		if errors.As(err, &rerr) {
-			return rerr.Result, nil
+		reconcileErr := reconcileError{}
+		if errors.As(err, &reconcileErr) {
+			return reconcileErr.Result, rerr
 		}
 		return ctrl.Result{}, err
 	}
 
-	if err := patchHelper.Patch(ctx, &machine); err != nil {
-		return ctrl.Result{}, fmt.Errorf("patch Machine: %s", err)
-	}
-	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	return ctrl.Result{RequeueAfter: 30 * time.Second}, rerr
 }
 
 func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine) error {
@@ -149,6 +157,28 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 				r.Recorder.Eventf(machine, corev1.EventTypeNormal, "DeletedVM", "Deleted VM %q", vm.Name)
 			}
 
+			if machine.Spec.IPPoolRef != nil {
+				var ipClaim ipamv1.IPClaim
+				ipClaimKey := types.NamespacedName{
+					Name:      machine.Name,
+					Namespace: machine.Namespace,
+				}
+				ipClaimNotFound := false
+				if err := r.Get(ctx, ipClaimKey, &ipClaim); err != nil {
+					if apierrors.IsNotFound(err) {
+						ipClaimNotFound = true
+					} else {
+						return fmt.Errorf("get ipClaim: %s", err)
+					}
+				}
+				if !ipClaimNotFound {
+					controllerutil.RemoveFinalizer(&ipClaim, finalizer)
+					if err := r.Update(ctx, &ipClaim); err != nil {
+						return fmt.Errorf("update ipClaim: %s", err)
+					}
+				}
+			}
+
 			controllerutil.RemoveFinalizer(machine, finalizer)
 		}
 	} else {
@@ -165,6 +195,10 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 		if ownerMachine.Spec.Bootstrap.DataSecretName == nil {
 			log.Info("bootstrap data is nil")
 			return reconcileError{Result: ctrl.Result{RequeueAfter: 3 * time.Second}}
+		}
+
+		if err := r.ensureMachineAddress(ctx, machine); err != nil {
+			return err
 		}
 
 		dataVolumes := r.buildDataVolumes(ctx, machine)
@@ -258,6 +292,79 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 	return nil
 }
 
+func (r *VirtinkMachineReconciler) ensureMachineAddress(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine) error {
+	if machine.Spec.IPPoolRef == nil {
+		return nil
+	}
+
+	ipClaimKey := types.NamespacedName{
+		Name:      machine.Name,
+		Namespace: machine.Namespace,
+	}
+	var ipClaim ipamv1.IPClaim
+	var ipClaimNotFound bool
+	if err := r.Get(ctx, ipClaimKey, &ipClaim); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		ipClaimNotFound = true
+	}
+
+	if ipClaimNotFound {
+		ipClaim = ipamv1.IPClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       ipClaimKey.Name,
+				Namespace:  ipClaimKey.Namespace,
+				Finalizers: []string{finalizer},
+			},
+			Spec: ipamv1.IPClaimSpec{
+				Pool: corev1.ObjectReference{
+					Namespace: machine.Namespace,
+					Name:      machine.Spec.IPPoolRef.Name,
+				},
+			},
+		}
+		if err := controllerutil.SetOwnerReference(machine, &ipClaim, r.Scheme); err != nil {
+			return err
+		}
+		if err := r.Create(ctx, &ipClaim); err != nil {
+			return err
+		}
+	}
+
+	if ipClaim.Status.ErrorMessage != nil {
+		failureReason := capierrors.InvalidConfigurationMachineError
+		machine.Status.FailureReason = &failureReason
+		machine.Status.FailureMessage = ipClaim.Status.ErrorMessage
+		return reconcileError{Result: ctrl.Result{Requeue: false}}
+	}
+
+	if ipClaim.Status.Address == nil {
+		return reconcileError{Result: ctrl.Result{RequeueAfter: 1 * time.Second}}
+	}
+
+	var ipAddress ipamv1.IPAddress
+	ipAddressKey := types.NamespacedName{
+		Namespace: ipClaim.Status.Address.Namespace,
+		Name:      ipClaim.Status.Address.Name,
+	}
+	if err := r.Get(ctx, ipAddressKey, &ipAddress); err != nil {
+		return err
+	}
+
+	macAddress, err := generateMAC()
+	if err != nil {
+		return fmt.Errorf("generate MAC address: %s", err)
+	}
+
+	replacer := strings.NewReplacer("$IP_ADDRESS", string(ipAddress.Spec.Address), "$MAC_ADDRESS", macAddress.String())
+	for name, value := range machine.Annotations {
+		machine.Annotations[name] = replacer.Replace(value)
+	}
+
+	return nil
+}
+
 func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine, ownerMachine *capiv1beta1.Machine) (*virtv1alpha1.VirtualMachine, error) {
 	vm := &virtv1alpha1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
@@ -293,70 +400,6 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 			},
 		},
 	})
-
-	var cluster infrastructurev1beta1.VirtinkCluster
-	clusterKey := types.NamespacedName{
-		Namespace: machine.Namespace,
-		Name:      ownerMachine.Spec.ClusterName,
-	}
-	if err := r.Client.Get(ctx, clusterKey, &cluster); err != nil {
-		return nil, err
-	}
-
-	if cluster.Spec.NodeAddressConfig == nil {
-		return vm, nil
-	}
-
-	var machineList infrastructurev1beta1.VirtinkMachineList
-	if err := r.Client.List(ctx, &machineList, client.InNamespace(machine.Namespace), client.MatchingLabels{"cluster.x-k8s.io/cluster-name": cluster.Name}); err != nil {
-		return nil, err
-	}
-
-	var isAddressUsedByMachine = func(m *infrastructurev1beta1.VirtinkMachine, addr string) bool {
-		for _, value := range m.Annotations {
-			if strings.Contains(value, addr) {
-				return true
-			}
-		}
-		return false
-	}
-
-	cadidateIPs := []net.IP{}
-	for _, addr := range cluster.Spec.NodeAddressConfig.Addresses {
-		ipRange, err := iprange.Parse(addr)
-		if err != nil {
-			return nil, err
-		}
-		cadidateIPs = append(cadidateIPs, ipRange.List()...)
-	}
-
-	var nextAddress string
-	for _, ip := range cadidateIPs {
-		var used bool
-		for _, virtinkMachine := range machineList.Items {
-			if isAddressUsedByMachine(&virtinkMachine, ip.String()) {
-				used = true
-				break
-			}
-		}
-		if !used {
-			nextAddress = ip.String()
-			break
-		}
-	}
-	if nextAddress == "" {
-		return nil, fmt.Errorf("no more available IP for %q", machine.Name)
-	}
-
-	macAddress, err := generateMAC()
-	if err != nil {
-		return nil, fmt.Errorf("generate MAC address: %s", err)
-	}
-
-	for name, value := range vm.Annotations {
-		replacer := strings.NewReplacer("$IP_ADDRESS", nextAddress, "$MAC_ADDRESS", macAddress.String())
-		vm.Annotations[name] = replacer.Replace(value)
-	}
 
 	return vm, nil
 }

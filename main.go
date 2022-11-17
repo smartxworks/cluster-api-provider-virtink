@@ -8,6 +8,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	ipamv1 "github.com/metal3-io/ip-address-manager/api/v1alpha1"
 	virtv1alpha1 "github.com/smartxworks/virtink/pkg/apis/virt/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -33,6 +34,7 @@ func init() {
 	utilruntime.Must(capiv1beta1.AddToScheme(scheme))
 	utilruntime.Must(virtv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(cdiv1beta1.AddToScheme(scheme))
+	utilruntime.Must(ipamv1.AddToScheme(scheme))
 
 	utilruntime.Must(infrastructurev1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
