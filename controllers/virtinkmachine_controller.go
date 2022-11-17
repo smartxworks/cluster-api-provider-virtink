@@ -181,10 +181,24 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 				dataVolumeNotFound = true
 			}
 			if dataVolumeNotFound {
-				if err := infraClusterClient.Create(ctx, dataVolume); err != nil {
-					return fmt.Errorf("create DataVolume: %s", err)
+				pvcNotFound := false
+				pvcKey := types.NamespacedName{
+					Namespace: dataVolume.Namespace,
+					Name:      dataVolume.Name,
 				}
-				r.Recorder.Eventf(machine, corev1.EventTypeNormal, "CreatedDataVolume", "Created DataVolume %q", dataVolume.Name)
+				var pvc corev1.PersistentVolumeClaim
+				if err := r.Get(ctx, pvcKey, &pvc); err != nil {
+					if !apierrors.IsNotFound(err) {
+						return fmt.Errorf("get PVC: %s", err)
+					}
+					pvcNotFound = true
+				}
+				if pvcNotFound {
+					if err := infraClusterClient.Create(ctx, dataVolume); err != nil {
+						return fmt.Errorf("create DataVolume: %s", err)
+					}
+					r.Recorder.Eventf(machine, corev1.EventTypeNormal, "CreatedDataVolume", "Created DataVolume %q", dataVolume.Name)
+				}
 			}
 		}
 
