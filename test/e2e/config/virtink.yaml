@@ -34,7 +34,7 @@ providers:
         replacements:
           - old: "imagePullPolicy: Always"
             new: "imagePullPolicy: IfNotPresent"
-  - name: virtink 
+  - name: virtink
     type: InfrastructureProvider
     versions:
       - name: v0.3.0
@@ -50,6 +50,18 @@ providers:
           - sourcePath: "../data/infrastructure-virtink/v1alpha1/cluster-template.yaml"
           - sourcePath: "../../../metadata.yaml"
       - name: v0.4.0
+        value: ../../../config/default
+        contract: v1beta1
+        replacements:
+          - old: capch-controller:latest
+            new: docker.io/smartxworks/capch-controller:e2e
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+        files:
+          - sourcePath: "../data/infrastructure-virtink/v1alpha1/cluster-template-internal.yaml"
+          - sourcePath: "../data/infrastructure-virtink/v1alpha1/cluster-template.yaml"
+          - sourcePath: "../../../metadata.yaml"
+      - name: v0.5.0
         value: ../../../config/default
         contract: v1beta1
         replacements:
@@ -79,5 +91,5 @@ intervals:
   default/wait-delete-cluster: ["5m", "10s"]
   default/wait-machine-upgrade: ["15m", "1m"]
   default/wait-machine-remediation: ["5m", "10s"]
-  node-drain/wait-deployment-available: [ "3m", "10s" ]
-  node-drain/wait-machine-deleted: [ "2m", "10s" ]
+  node-drain/wait-deployment-available: ["3m", "10s"]
+  node-drain/wait-machine-deleted: ["2m", "10s"]
