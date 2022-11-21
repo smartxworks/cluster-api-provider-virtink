@@ -1,6 +1,6 @@
 module github.com/smartxworks/cluster-api-provider-virtink
 
-go 1.17
+go 1.19
 
 require (
 	github.com/google/uuid v1.3.0
