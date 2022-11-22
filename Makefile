@@ -117,16 +117,15 @@ KUBECTL ?= $(LOCALBIN)/kubectl
 CMCTL ?= $(LOCALBIN)/cmctl
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.8.0
 GINKGO_VERSION ?= v1.16.5
 
-KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
-	rm -rf $(KUSTOMIZE)
-	curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
+	curl -sLo kustomize.tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v4.5.7/kustomize_v4.5.7_linux_amd64.tar.gz
+	tar xzf  kustomize.tar.gz -C $(LOCALBIN)
+	rm -rf kustomize.tar.gz
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
@@ -174,7 +173,7 @@ e2e-cluster-templates-v1alpha1: $(KUSTOMIZE) ## Generate cluster templates for v
 
 SKIP_RESOURCE_CLEANUP ?= false
 CERT_MANAGER_MANIFEST ?= https://github.com/cert-manager/cert-manager/releases/download/v1.8.2/cert-manager.yaml
-VIRTINK_MANIFEST ?= https://github.com/smartxworks/virtink/releases/download/v0.8.0/virtink.yaml	
+VIRTINK_MANIFEST ?= https://github.com/smartxworks/virtink/releases/download/v0.8.0/virtink.yaml
 E2E_KIND_CLUSTER_NAME ?= capch-e2e-$(shell date "+%Y-%m-%d-%H-%M-%S")
 E2E_KIND_CLUSTER_KUBECONFIG := /tmp/$(E2E_KIND_CLUSTER_NAME).kubeconfig
 
