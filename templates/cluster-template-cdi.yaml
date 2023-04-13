@@ -22,7 +22,8 @@ kind: VirtinkCluster
 metadata:
   name: "${CLUSTER_NAME}"
 spec:
-  controlPlaneServiceType: "${VIRTINK_CONTROL_PLANE_SERVICE_TYPE:=NodePort}"
+  controlPlaneServiceTemplate:
+    type: "${VIRTINK_CONTROL_PLANE_SERVICE_TYPE:=NodePort}"
   infraClusterSecretRef:
     name: "${VIRTINK_INFRA_CLUSTER_SECRET_NAME}"
     namespace: "${VIRTINK_INFRA_CLUSTER_SECRET_NAMESPACE}"

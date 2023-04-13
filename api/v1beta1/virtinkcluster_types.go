@@ -17,13 +17,28 @@ type VirtinkClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	ControlPlaneEndpoint capiv1beta1.APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
 
-	// ControlPlaneServiceType can be used to modify type of service that fronts the control plane nodes to handle the
+	// ControlPlaneServiceTemplate can be used to modify service that fronts the control plane nodes to handle the
 	// api-server traffic (port 6443). This field is optional, by default control plane nodes will use a service
-	// of type ClusterIP, which will make workload cluster only accessible within the same cluster.
-	ControlPlaneServiceType *corev1.ServiceType `json:"controlPlaneServiceType,omitempty"`
+	// of type ClusterIP, which will make workload cluster only accessible within the same cluster. Note, this does
+	// not aim to expose the entire service spec to users, but only provides capability to modify the service metadata
+	// and the service type.
+	ControlPlaneServiceTemplate ControlPlaneServiceTemplate `json:"controlPlaneServiceTemplate,omitempty"`
 
 	// InfraClusterSecretRef is a reference to a secret with a kubeconfig for external cluster used for infra.
 	InfraClusterSecretRef *corev1.ObjectReference `json:"infraClusterSecretRef,omitempty"`
+}
+
+// ControlPlaneServiceTemplate describes the template for the control plane service.
+type ControlPlaneServiceTemplate struct {
+	// Service metadata allows to set labels and annotations for the service.
+	// This field is optional.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	ObjectMeta metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Type can be used to modify type of service that fronts the control plane nodes to handle the
+	// api-server traffic (port 6443). This field is optional, by default control plane nodes will use a service
+	// of type ClusterIP, which will make workload cluster only accessible within the same cluster.
+	Type *corev1.ServiceType `json:"type,omitempty"`
 }
 
 // VirtinkClusterStatus defines the observed state of VirtinkCluster

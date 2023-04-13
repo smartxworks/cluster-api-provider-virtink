@@ -63,6 +63,8 @@ SA_TOKEN="$(kubectl get secret "${SA_SECRET}" -o jsonpath='{.data.token}' | base
 kubectl config --kubeconfig virtink-infra-cluster.kubeconfig set-credentials kubernetes-admin "--token=${SA_TOKEN}"
 ```
 
+> **Note**: In more recent versions, including K8S v1.24, the long term API token will not be automatically created for the ServiceAccount, you may [manually create a token Secret for the ServiceAccount](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#manually-create-a-long-lived-api-token-for-a-serviceaccount), and set the enviroment variable `SA_SECRET` above.
+
 Create a secret in managment cluster and set environment variables before generating workload cluster configuration.
 
 ```shell

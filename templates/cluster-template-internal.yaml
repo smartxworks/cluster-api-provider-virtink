@@ -22,7 +22,8 @@ kind: VirtinkCluster
 metadata:
   name: "${CLUSTER_NAME}"
 spec:
-  controlPlaneServiceType: "${VIRTINK_CONTROL_PLANE_SERVICE_TYPE:=NodePort}"
+  controlPlaneServiceTemplate:
+    type: "${VIRTINK_CONTROL_PLANE_SERVICE_TYPE:=NodePort}"
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
