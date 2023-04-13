@@ -149,7 +149,7 @@ func (r *VirtinkClusterReconciler) reconcile(ctx context.Context, cluster *infra
 			r.Recorder.Eventf(cluster, corev1.EventTypeNormal, "CreatedControlPlaneService", "Created control plane Service %q", controlPlaneService.Name)
 		}
 
-		if cluster.Spec.ControlPlaneServiceType != nil && *cluster.Spec.ControlPlaneServiceType == corev1.ServiceTypeLoadBalancer {
+		if cluster.Spec.ControlPlaneServiceTemplate.Type != nil && *cluster.Spec.ControlPlaneServiceTemplate.Type == corev1.ServiceTypeLoadBalancer {
 			if len(controlPlaneService.Status.LoadBalancer.Ingress) == 0 {
 				return fmt.Errorf("control plane load balancer is not ready")
 			}
@@ -210,8 +210,10 @@ func (r *VirtinkClusterReconciler) buildControlPlaneService(ctx context.Context,
 			}},
 		},
 	}
-	if cluster.Spec.ControlPlaneServiceType != nil {
-		service.Spec.Type = *cluster.Spec.ControlPlaneServiceType
+	service.Labels = cluster.Spec.ControlPlaneServiceTemplate.ObjectMeta.Labels
+	service.Annotations = cluster.Spec.ControlPlaneServiceTemplate.ObjectMeta.Annotations
+	if cluster.Spec.ControlPlaneServiceTemplate.Type != nil {
+		service.Spec.Type = *cluster.Spec.ControlPlaneServiceTemplate.Type
 	}
 	return service, nil
 }
