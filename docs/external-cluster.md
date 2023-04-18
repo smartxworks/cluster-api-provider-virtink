@@ -52,6 +52,24 @@ subjects:
 EOF
 ```
 
+for creating a persistent cluster, should follow [Launching a Kubernetes cluster on Virtink with persistent storage](./../README.md) to make Virtink cluster meets the conditions, and add below rule to virtink-infra-cluster ClusterRole.
+
+```yaml
+rules:
+- apiGroups:
+  - cdi.kubevirt.io
+  resources:
+  - datavolumes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+```
+
 Create a kubeconfig with API access control of the Virtink cluster.
 
 ```shell
