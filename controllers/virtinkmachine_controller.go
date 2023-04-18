@@ -209,7 +209,7 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 			}
 			dataVolumeNotFound := false
 			createdDataVolume := cdiv1beta1.DataVolume{}
-			if err := r.Get(ctx, dataVolumeKey, &createdDataVolume); err != nil {
+			if err := infraClusterClient.Get(ctx, dataVolumeKey, &createdDataVolume); err != nil {
 				if !apierrors.IsNotFound(err) {
 					return fmt.Errorf("get DataVolume: %s", err)
 				}
@@ -222,7 +222,7 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 					Name:      dataVolume.Name,
 				}
 				var pvc corev1.PersistentVolumeClaim
-				if err := r.Get(ctx, pvcKey, &pvc); err != nil {
+				if err := infraClusterClient.Get(ctx, pvcKey, &pvc); err != nil {
 					if !apierrors.IsNotFound(err) {
 						return fmt.Errorf("get PVC: %s", err)
 					}
