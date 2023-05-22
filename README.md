@@ -35,6 +35,7 @@ Except for the [common variables](https://cluster-api.sigs.k8s.io/clusterctl/pro
 | KUBERNETES_VERSION                         | Only support Kubernetes versions that corresponding rootfs image `smartxworks/capch-rootfs-$KUBERNETES_VERSION` exists|
 | VIRTINK_INFRA_CLUSTER_SECRET_NAME          | The name of secret in the management cluster that contains the kubeconfig of the Virtink infrastructure cluster       |
 | VIRTINK_INFRA_CLUSTER_SECRET_NAMESPACE     | The namespace of secret in the management cluster that contains the kubeconfig of the Virtink infrastructure cluster  |
+| VIRTINK_INFRA_CLUSTER_RESOURCES_NAMESPACE  | The namespace of resources(such as VM, DataVolume) to be created in the infrastructural cluster, make sure it exists before create the workload cluster (default `$NAMESPACE`)                                                                                                                                       |
 | POD_NETWORK_CIDR                           | Range of IP addresses for the pod network (default `192.168.0.0/16`)                                                  |
 | SERVICE_CIDR                               | Range of IP address for service VIPs (default `10.96.0.0/12`)                                                         |
 | VIRTINK_CONTROL_PLANE_SERVICE_TYPE         | The type of control plane service (default `NodePort`)                                                                |

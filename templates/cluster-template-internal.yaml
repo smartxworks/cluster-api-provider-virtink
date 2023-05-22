@@ -23,6 +23,8 @@ metadata:
   name: "${CLUSTER_NAME}"
 spec:
   controlPlaneServiceTemplate:
+    metadata:
+      namespace: ${VIRTINK_INFRA_CLUSTER_RESOURCES_NAMESPACE:=${NAMESPACE}}
     type: "${VIRTINK_CONTROL_PLANE_SERVICE_TYPE:=NodePort}"
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
@@ -62,44 +64,47 @@ metadata:
 spec:
   template:
     spec:
-      vmSpec:
-        affinity:
-          podAntiAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                podAffinityTerm:
-                  topologyKey: kubernetes.io/hostname
-                  labelSelector:
-                    matchExpressions:
-                      - key: cluster.x-k8s.io/control-plane
-                        operator: Exists
-        runPolicy: Once
-        readinessProbe:
-          httpGet:
-            scheme: HTTPS
-            port: 6443
-            path: /readyz
-        instance:
-          cpu:
-            sockets: 1
-            coresPerSocket: ${VIRTINK_CONTROL_PLANE_MACHINE_CPU_CORES:=2}
-          memory:
-            size: ${VIRTINK_CONTROL_PLANE_MACHINE_MEMORY_SIZE:=4Gi}
-          kernel:
-            image: "${VIRTINK_CONTROL_PLANE_MACHINE_KERNEL_IMAGE:=smartxworks/capch-kernel-5.15.12}"
-            cmdline: "console=ttyS0 root=/dev/vda rw"
-          disks:
+      virtualMachineTemplate:
+        metadata:
+          namespace: ${VIRTINK_INFRA_CLUSTER_RESOURCES_NAMESPACE:=${NAMESPACE}}
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    topologyKey: kubernetes.io/hostname
+                    labelSelector:
+                      matchExpressions:
+                        - key: cluster.x-k8s.io/control-plane
+                          operator: Exists
+          runPolicy: Once
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              port: 6443
+              path: /readyz
+          instance:
+            cpu:
+              sockets: 1
+              coresPerSocket: ${VIRTINK_CONTROL_PLANE_MACHINE_CPU_CORES:=2}
+            memory:
+              size: ${VIRTINK_CONTROL_PLANE_MACHINE_MEMORY_SIZE:=4Gi}
+            kernel:
+              image: "${VIRTINK_CONTROL_PLANE_MACHINE_KERNEL_IMAGE:=smartxworks/capch-kernel-5.15.12}"
+              cmdline: "console=ttyS0 root=/dev/vda rw"
+            disks:
+              - name: rootfs
+            interfaces:
+              - name: pod
+          volumes:
             - name: rootfs
-          interfaces:
+              containerRootfs:
+                image: "${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_IMAGE:=smartxworks/capch-rootfs-${KUBERNETES_VERSION:=1.24.0}}"
+                size: ${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_SIZE:=4Gi}
+          networks:
             - name: pod
-        volumes:
-          - name: rootfs
-            containerRootfs:
-              image: "${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_IMAGE:=smartxworks/capch-rootfs-${KUBERNETES_VERSION:=1.24.0}}"
-              size: ${VIRTINK_CONTROL_PLANE_MACHINE_ROOTFS_SIZE:=4Gi}
-        networks:
-          - name: pod
-            pod: {}
+              pod: {}
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineHealthCheck
@@ -166,41 +171,44 @@ metadata:
 spec:
   template:
     spec:
-      vmSpec:
-        affinity:
-          podAntiAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                podAffinityTerm:
-                  topologyKey: kubernetes.io/hostname
-                  labelSelector:
-                    matchExpressions:
-                      - key: cluster.x-k8s.io/deployment-name
-                        operator: In
-                        values:
-                          - "${CLUSTER_NAME}-md-0"
-        runPolicy: Once
-        instance:
-          cpu:
-            sockets: 1
-            coresPerSocket: ${VIRTINK_WORKER_MACHINE_CPU_CORES:=2}
-          memory:
-            size: ${VIRTINK_WORKER_MACHINE_MEMORY_SIZE:=4Gi}
-          kernel:
-            image: "${VIRTINK_WORKER_MACHINE_KERNEL_IMAGE:=smartxworks/capch-kernel-5.15.12}"
-            cmdline: "console=ttyS0 root=/dev/vda rw"
-          disks:
+      virtualMachineTemplate:
+        metadata:
+          namespace: ${VIRTINK_INFRA_CLUSTER_RESOURCES_NAMESPACE:=${NAMESPACE}}
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    topologyKey: kubernetes.io/hostname
+                    labelSelector:
+                      matchExpressions:
+                        - key: cluster.x-k8s.io/deployment-name
+                          operator: In
+                          values:
+                            - "${CLUSTER_NAME}-md-0"
+          runPolicy: Once
+          instance:
+            cpu:
+              sockets: 1
+              coresPerSocket: ${VIRTINK_WORKER_MACHINE_CPU_CORES:=2}
+            memory:
+              size: ${VIRTINK_WORKER_MACHINE_MEMORY_SIZE:=4Gi}
+            kernel:
+              image: "${VIRTINK_WORKER_MACHINE_KERNEL_IMAGE:=smartxworks/capch-kernel-5.15.12}"
+              cmdline: "console=ttyS0 root=/dev/vda rw"
+            disks:
+              - name: rootfs
+            interfaces:
+              - name: pod
+          volumes:
             - name: rootfs
-          interfaces:
+              containerRootfs:
+                image: "${VIRTINK_WORKER_MACHINE_ROOTFS_IMAGE:=smartxworks/capch-rootfs-${KUBERNETES_VERSION:=1.24.0}}"
+                size: ${VIRTINK_WORKER_MACHINE_ROOTFS_SIZE:=4Gi}
+          networks:
             - name: pod
-        volumes:
-          - name: rootfs
-            containerRootfs:
-              image: "${VIRTINK_WORKER_MACHINE_ROOTFS_IMAGE:=smartxworks/capch-rootfs-${KUBERNETES_VERSION:=1.24.0}}"
-              size: ${VIRTINK_WORKER_MACHINE_ROOTFS_SIZE:=4Gi}
-        networks:
-          - name: pod
-            pod: {}
+              pod: {}
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineHealthCheck

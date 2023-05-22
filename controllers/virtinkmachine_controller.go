@@ -134,12 +134,17 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 		}
 	}
 
+	infraNamespace := machine.Namespace
+	if machine.Spec.VirtualMachineTemplate.ObjectMeta.Namespace != "" {
+		infraNamespace = machine.Spec.VirtualMachineTemplate.ObjectMeta.Namespace
+	}
+
 	if !machine.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(machine, finalizer) {
 			var vm virtv1alpha1.VirtualMachine
 			vmKey := types.NamespacedName{
 				Name:      machine.Name,
-				Namespace: machine.Namespace,
+				Namespace: infraNamespace,
 			}
 			vmNotFound := false
 			if err := infraClusterClient.Get(ctx, vmKey, &vm); err != nil {
@@ -240,7 +245,7 @@ func (r *VirtinkMachineReconciler) reconcile(ctx context.Context, machine *infra
 		var vm virtv1alpha1.VirtualMachine
 		vmKey := types.NamespacedName{
 			Name:      machine.Name,
-			Namespace: machine.Namespace,
+			Namespace: infraNamespace,
 		}
 		vmNotFound := false
 		if err := infraClusterClient.Get(ctx, vmKey, &vm); err != nil {
@@ -371,7 +376,7 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 			Labels:      machine.Labels,
 			Annotations: machine.Annotations,
 		},
-		Spec: machine.Spec.VMSpec,
+		Spec: machine.Spec.VirtualMachineTemplate.Spec,
 	}
 
 	for i := range vm.Spec.Volumes {
@@ -405,13 +410,18 @@ func (r *VirtinkMachineReconciler) buildVM(ctx context.Context, machine *infrast
 }
 
 func (r *VirtinkMachineReconciler) buildDataVolumes(ctx context.Context, machine *infrastructurev1beta1.VirtinkMachine) []*cdiv1beta1.DataVolume {
+	infraNamespace := machine.Namespace
+	if machine.Spec.VirtualMachineTemplate.ObjectMeta.Namespace != "" {
+		infraNamespace = machine.Spec.VirtualMachineTemplate.ObjectMeta.Namespace
+	}
+
 	dataVolumes := []*cdiv1beta1.DataVolume{}
 	for _, volume := range machine.Spec.VolumeTemplates {
 		switch {
 		case volume.DataVolume != nil:
 			dataVolume := cdiv1beta1.DataVolume{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: machine.Namespace,
+					Namespace: infraNamespace,
 					Name:      fmt.Sprintf("%s-%s", machine.Name, volume.DataVolume.Name),
 				},
 				Spec: *volume.DataVolume.Spec.DeepCopy(),

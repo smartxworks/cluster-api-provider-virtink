@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrastructurev1beta1 "github.com/smartxworks/cluster-api-provider-virtink/api/v1beta1"
@@ -23,6 +24,7 @@ var _ = Describe("VirtinkMachine controller", func() {
 		var clusterKey types.NamespacedName
 		var machineKey types.NamespacedName
 		var virtinkMachineKey types.NamespacedName
+		var virtualMachineKey types.NamespacedName
 		BeforeEach(func() {
 			By("creating a new VirtinkCluster")
 			clusterKey = types.NamespacedName{
@@ -74,6 +76,19 @@ var _ = Describe("VirtinkMachine controller", func() {
 				Namespace: "default",
 				Name:      "virtink-machine-" + uuid.New().String(),
 			}
+
+			infraNamespace := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "infra-namespace",
+				},
+			}
+			Expect(client.IgnoreAlreadyExists(k8sClient.Create(ctx, infraNamespace))).To(Succeed())
+
+			virtualMachineKey = types.NamespacedName{
+				Namespace: infraNamespace.Name,
+				Name:      virtinkMachineKey.Name,
+			}
+
 			virtinkMachine := infrastructurev1beta1.VirtinkMachine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      virtinkMachineKey.Name,
@@ -83,11 +98,16 @@ var _ = Describe("VirtinkMachine controller", func() {
 					},
 				},
 				Spec: infrastructurev1beta1.VirtinkMachineSpec{
-					VMSpec: virtv1alpha1.VirtualMachineSpec{
-						Instance: virtv1alpha1.Instance{
-							CPU: virtv1alpha1.CPU{
-								Sockets:        uint32(1),
-								CoresPerSocket: uint32(2),
+					VirtualMachineTemplate: infrastructurev1beta1.VirtualMachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Namespace: virtualMachineKey.Namespace,
+						},
+						Spec: virtv1alpha1.VirtualMachineSpec{
+							Instance: virtv1alpha1.Instance{
+								CPU: virtv1alpha1.CPU{
+									Sockets:        uint32(1),
+									CoresPerSocket: uint32(2),
+								},
 							},
 						},
 					},
@@ -109,7 +129,7 @@ var _ = Describe("VirtinkMachine controller", func() {
 			It("should not create VM", func() {
 				var vm virtv1alpha1.VirtualMachine
 				Consistently(func() bool {
-					return apierrors.IsNotFound(k8sClient.Get(ctx, virtinkMachineKey, &vm))
+					return apierrors.IsNotFound(k8sClient.Get(ctx, virtualMachineKey, &vm))
 				}).Should(BeTrue())
 			})
 		})
@@ -128,7 +148,7 @@ var _ = Describe("VirtinkMachine controller", func() {
 				It("should not create VM", func() {
 					var vm virtv1alpha1.VirtualMachine
 					Consistently(func() bool {
-						return apierrors.IsNotFound(k8sClient.Get(ctx, virtinkMachineKey, &vm))
+						return apierrors.IsNotFound(k8sClient.Get(ctx, virtualMachineKey, &vm))
 					}).Should(BeTrue())
 				})
 			})
@@ -156,9 +176,10 @@ var _ = Describe("VirtinkMachine controller", func() {
 				It("should create a virtink VM", func() {
 					var vm virtv1alpha1.VirtualMachine
 					Eventually(func() error {
-						return k8sClient.Get(ctx, virtinkMachineKey, &vm)
+						return k8sClient.Get(ctx, virtualMachineKey, &vm)
 					}, "10s").Should(Succeed())
 					Expect(vm.Spec.Volumes[0].CloudInit.UserDataBase64).To(Equal(base64.StdEncoding.EncodeToString([]byte("#cloud-init"))))
+					Expect(vm.Namespace).To(Equal("infra-namespace"))
 
 					var virtinkMachine infrastructurev1beta1.VirtinkMachine
 					Eventually(func() bool {
@@ -172,7 +193,7 @@ var _ = Describe("VirtinkMachine controller", func() {
 					It("should delete virtink VM and remove finalizer", func() {
 						var vm virtv1alpha1.VirtualMachine
 						Eventually(func() error {
-							return k8sClient.Get(ctx, virtinkMachineKey, &vm)
+							return k8sClient.Get(ctx, virtualMachineKey, &vm)
 						}, "10s").Should(Succeed())
 
 						virtinkMachine := infrastructurev1beta1.VirtinkMachine{
@@ -184,7 +205,7 @@ var _ = Describe("VirtinkMachine controller", func() {
 						Expect(k8sClient.Delete(ctx, &virtinkMachine)).To(Succeed())
 
 						Eventually(func() bool {
-							return apierrors.IsNotFound(k8sClient.Get(ctx, virtinkMachineKey, &vm))
+							return apierrors.IsNotFound(k8sClient.Get(ctx, virtualMachineKey, &vm))
 						}).Should(BeTrue())
 					})
 				})
