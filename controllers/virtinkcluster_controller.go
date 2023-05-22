@@ -82,12 +82,16 @@ func (r *VirtinkClusterReconciler) reconcile(ctx context.Context, cluster *infra
 		}
 	}
 
+	infraNamespace := cluster.Namespace
+	if cluster.Spec.ControlPlaneServiceTemplate.ObjectMeta.Namespace != "" {
+		infraNamespace = cluster.Spec.ControlPlaneServiceTemplate.ObjectMeta.Namespace
+	}
 	if !cluster.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(cluster, finalizer) {
 			var controlPlaneService corev1.Service
 			controlPlaneServiceKey := types.NamespacedName{
 				Name:      cluster.Name,
-				Namespace: cluster.Namespace,
+				Namespace: infraNamespace,
 			}
 			controlPlaneServiceNotFound := false
 			if err := infraClusterClient.Get(ctx, controlPlaneServiceKey, &controlPlaneService); err != nil {
@@ -124,7 +128,7 @@ func (r *VirtinkClusterReconciler) reconcile(ctx context.Context, cluster *infra
 		var controlPlaneService corev1.Service
 		controlPlaneServiceKey := types.NamespacedName{
 			Name:      cluster.Name,
-			Namespace: cluster.Namespace,
+			Namespace: infraNamespace,
 		}
 		controlPlaneServiceNotFound := false
 		if err := infraClusterClient.Get(ctx, controlPlaneServiceKey, &controlPlaneService); err != nil {

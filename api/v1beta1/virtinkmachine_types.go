@@ -18,9 +18,15 @@ type VirtinkMachineSpec struct {
 
 	ProviderID *string `json:"providerID,omitempty"`
 
-	VMSpec          virtv1alpha1.VirtualMachineSpec   `json:"vmSpec"`
-	VolumeTemplates []VolumeTemplateSource            `json:"volumeTemplates,omitempty"`
-	IPPoolRef       *corev1.TypedLocalObjectReference `json:"ipPoolRef,omitempty"`
+	VirtualMachineTemplate VirtualMachineTemplateSpec        `json:"virtualMachineTemplate"`
+	VolumeTemplates        []VolumeTemplateSource            `json:"volumeTemplates,omitempty"`
+	IPPoolRef              *corev1.TypedLocalObjectReference `json:"ipPoolRef,omitempty"`
+}
+
+type VirtualMachineTemplateSpec struct {
+	// +kubebuilder:pruning:PreserveUnknownFields
+	ObjectMeta metav1.ObjectMeta               `json:"metadata,omitempty"`
+	Spec       virtv1alpha1.VirtualMachineSpec `json:"spec"`
 }
 
 type VolumeTemplateSource struct {
